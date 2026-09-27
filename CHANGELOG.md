@@ -84,7 +84,8 @@ change with it, so they are not listed here.
   every request, with tokens, codes and passwords redacted.
 - `claim` makes `ff`, or another short name, run the CLI, and `claim --undo`
   takes it back.
-- `open` opens firmfact in your browser, on the host you use.
+- `open` opens firmfact in your browser, on the host you use, or the page
+  of it that a link names, such as the review of a document you uploaded.
 - Tab completion for bash, zsh, fish and PowerShell, and man pages.
 - Releases for Linux, macOS and Windows on amd64 and arm64: through Homebrew
   (`brew install firmfact/tap/firmfact`), Scoop, the one-line installers on

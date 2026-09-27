@@ -29,8 +29,8 @@ import (
 var versionExempt = map[string]bool{
 	"update": true, "doctor": true, "help": true, "completion": true, "version": true,
 	"logout": true, "claim": true, "config": true, "tools": true,
-	// It only hands the host to the browser; the web app does not care
-	// which CLI asked.
+	// It only hands a page of the host to the browser; the web app does
+	// not care which CLI asked.
 	"open": true,
 	// A Tab asks through these: its answer must come at once, and an
 	// error in place of it would only leave the shell without one.

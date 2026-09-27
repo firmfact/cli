@@ -174,7 +174,7 @@ does not.
 | `upload <files>` / `upload status` | Upload invoices, contracts and other documents for firmfact to read, and see what it read (see [Uploading documents](#uploading-documents)) |
 | `chat-with-workspace` | The same, as a workspace command with `--message` and `--thread-id`; kept for scripts that use it |
 | `call <tool>` | Call any workspace tool by name |
-| `open` | Open firmfact in your browser, on the host you use |
+| `open [link]` | Open firmfact in your browser, on the host you use, or the page of it a link names, such as a document's review |
 | `doctor` | Check the installation, proxy, connection and sign-in |
 | `version` | The version, the commit it was built from, the platform, how it was installed and the latest release known |
 | `update` | Update to the latest release; `--pre` takes pre-releases too, `--version` the release you name |
