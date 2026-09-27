@@ -25,9 +25,11 @@ import (
 // cannot see ends it with ExitFailed, listed in meta.variance_unchecked:
 // someone else's upload, whose results only they see; an invoice whose
 // contract the sign-in may not view, whose preview firmfact could not work
-// out, or for which it sent none. A document that is not an invoice, and
-// an invoice without a contract to compare it with, passes: there is no
-// variance to hold it to.
+// out, or for which it sent none; and an invoice with a contract none of
+// whose lines is matched to it yet, or whose review page is not built, as
+// nothing was compared. A document that is not an invoice, and an invoice
+// with no contract to compare it with, passes: there is no variance to
+// hold it to.
 
 // varianceFlag is --fail-on-variance[=threshold].
 type varianceFlag struct {
@@ -72,8 +74,9 @@ func varianceHelp(more string) string {
 		"the command ends with exit status %[1]d when an invoice is further from its contract than the threshold allows, above or below it. "+
 		"The threshold is a percentage of the contracted amount (--fail-on-variance=2%%) or an amount in the invoice's currency (--fail-on-variance=50), "+
 		"and an invoice exactly at it passes; without one, any variance of a cent or more counts. "+
-		"Documents that are not invoices, and invoices firmfact did not match to a contract, never exceed it. "+
-		"A document whose variance cannot be checked, such as someone else's upload or an invoice whose contract you may not view, "+
+		"Documents that are not invoices, and invoices with no contract to compare them with, never exceed it. "+
+		"A document whose variance cannot be checked, such as someone else's upload, an invoice whose contract you may not view, "+
+		"or one whose lines are not matched to its contract yet, "+
 		"makes the exit status 1, as a document that could not be read does, and a wait that ran out makes it 5: "+
 		"so %[1]d means that everything else went well. %[2]s", ExitVariance, more)
 	return strings.Join(wrapText(text, 74), "\n")
@@ -146,8 +149,20 @@ func checkVariance(t upload.Threshold, d *upload.Document) varianceCheck {
 		return varianceCheck{}
 	case "not_available":
 		switch v.Reason {
-		case "no_match", "new_contract", "no_lines":
-			// No contract, or no line, to compare with.
+		case "new_contract", "no_lines":
+			// A contract still to be made, or no line, to compare with.
+			return varianceCheck{}
+		case "no_match":
+			// No line is matched to a contract item. That passes only
+			// for an invoice with no contract: one linked or suggested
+			// to a contract was not compared with it, and a review page
+			// not built yet has no matches, whatever the invoice has.
+			switch {
+			case d.Review != nil && d.Review.AnalysisPending:
+				return unchecked("its review page is not ready, so firmfact has not compared it with a contract")
+			case d.ContractMatch != nil && d.ContractMatch.Status != "none":
+				return unchecked("no line is matched to a contract item yet")
+			}
 			return varianceCheck{}
 		}
 		return unchecked(orDefault(ui.SafeLine(strings.TrimSpace(v.Message)), "no variance preview: "+words(v.Reason)))

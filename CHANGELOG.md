@@ -71,9 +71,11 @@ change with it, so they are not listed here.
   of the contracted amount (`--fail-on-variance=2%`) or an amount in the
   invoice's currency (`--fail-on-variance=50`); without one, any variance
   counts. With `--json`, `meta.variance_exceeded` lists those invoices.
-  Documents that are not invoices, and invoices without a contract match,
-  never trip it; a document whose variance cannot be checked makes the
-  exit status 1, and is listed in `meta.variance_unchecked`.
+  Documents that are not invoices, and invoices with no contract to
+  compare them with, never trip it; a document whose variance cannot be
+  checked, such as an invoice whose lines are not matched to its contract
+  yet, makes the exit status 1, and is listed in
+  `meta.variance_unchecked`.
 - A command that writes to a workspace says so in its help, and one that may
   delete or overwrite data asks first, or takes `--yes`.
 - Output for people and for scripts: tables that fit the terminal,

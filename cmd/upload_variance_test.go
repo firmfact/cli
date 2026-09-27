@@ -10,10 +10,15 @@ import (
 )
 
 // withInvoice gives s an invoice called name, with id, whose variance
-// preview is variance (JSON, or null), in the currency the preview names.
-func withInvoice(s *uploadServer, name, id, variance string) {
+// preview is variance (JSON, or null), in the currency the preview names,
+// and any more sections as fields ("contract_match":{...}).
+func withInvoice(s *uploadServer, name, id, variance string, fields ...string) {
+	more := ""
+	for _, f := range fields {
+		more += "," + f
+	}
 	s.fixtures[name] = `{"id":"` + id + `","state":"ready_for_review","own":true,"filename":"` + name + `",` +
-		`"type":"invoice","read":{"type":"invoice","currency":"EUR","amounts":{"total":"1000.00"}},"variance":` + variance + `}`
+		`"type":"invoice","read":{"type":"invoice","currency":"EUR","amounts":{"total":"1000.00"}},"variance":` + variance + more + `}`
 }
 
 // preview is a variance preview against 1,000.00 contracted, of amount,
@@ -94,8 +99,8 @@ func TestFailOnVarianceBelowTheContract(t *testing.T) {
 }
 
 // In a batch, only the invoices over the threshold are named: a clean
-// invoice, one under it, one without a contract match, a contract and an
-// HR file pass. --json lists the files over it, by the paths the command
+// invoice, one under it, one with no contract to compare it with, a
+// contract and an HR file pass. --json lists the files over it, by the paths the command
 // line named, in meta.variance_exceeded; meta.variance_unchecked is there
 // and empty. The results are printed as without the flag.
 func TestFailOnVarianceMixedBatch(t *testing.T) {
@@ -103,7 +108,8 @@ func TestFailOnVarianceMixedBatch(t *testing.T) {
 	fastUploadPolls(t)
 	s := newUploadServer(t)
 	withInvoice(s, "under.pdf", underID, preview("19.99", "2.0"))
-	names := []string{"BBG-88123.pdf", "LSEG-2026-09.pdf", "under.pdf", "FactSet-Q3.pdf", "BBG-Anywhere-2026.pdf", "HR-2026-09.xlsx"}
+	withInvoice(s, "nocontract.pdf", atID, `{"preview":true,"status":"not_available","reason":"no_match"}`, `"contract_match":{"status":"none"}`)
+	names := []string{"BBG-88123.pdf", "LSEG-2026-09.pdf", "under.pdf", "nocontract.pdf", "BBG-Anywhere-2026.pdf", "HR-2026-09.xlsx"}
 	uploadDir(t, names...)
 
 	stdout, _, err := run("test", append([]string{"--host", s.URL(), "--workspace", "Acme", "--json", "upload", "--fail-on-variance=2%"}, names...)...)
@@ -169,15 +175,17 @@ func TestFailOnVarianceNamesAFew(t *testing.T) {
 
 // A pipeline never reads a pass for a variance nobody checked. An invoice
 // whose contract the sign-in may not view, whose preview firmfact could
-// not work out or did not send, or whose preview this CLI cannot read, and
-// a document someone else uploaded, fail the upload with status 1 and are
-// listed in meta.variance_unchecked. A document that could not be read or
+// not work out or did not send, or whose preview this CLI cannot read; an
+// invoice with a contract none of whose lines is matched to it yet, or
+// whose review page is not built; and a document someone else uploaded,
+// fail the upload with status 1 and are listed in meta.variance_unchecked. A document that could not be read or
 // was still being read ends it as without the flag, and an invoice over
 // the threshold is named all the same.
 func TestFailOnVarianceUnchecked(t *testing.T) {
 	isolate(t)
 	fastUploadPolls(t)
-	uploadDir(t, "hidden.pdf", "odd.pdf", "LSEG-2026-09.pdf", "scan-0034.pdf", "theirs.pdf", "bare.pdf", "notanamount.pdf")
+	uploadDir(t, "hidden.pdf", "odd.pdf", "LSEG-2026-09.pdf", "scan-0034.pdf", "theirs.pdf", "bare.pdf", "notanamount.pdf", "unmatched.pdf")
+	const noMatch = `{"preview":true,"status":"not_available","reason":"no_match","message":"No line is matched to a contract item yet."}`
 	cases := []struct {
 		name  string
 		setup func(*uploadServer)
@@ -201,6 +209,18 @@ func TestFailOnVarianceUnchecked(t *testing.T) {
 		{"an amount that is not one", func(s *uploadServer) {
 			withInvoice(s, "notanamount.pdf", underID, `{"preview":true,"status":"variance","amount":"lots"}`)
 		}, []string{"notanamount.pdf"}, ExitFailed, "notanamount.pdf (its variance is not an amount: lots)"},
+		{"a linked contract with no line matched to it", func(s *uploadServer) {
+			withInvoice(s, "unmatched.pdf", underID, noMatch, `"contract_match":{"status":"linked","how":"automatic","contract":{"number":"C-0042"}}`)
+		}, []string{"unmatched.pdf"}, ExitFailed,
+			"the variance of 1 document could not be checked: unmatched.pdf (no line is matched to a contract item yet)"},
+		{"a suggested contract with no line matched to it", func(s *uploadServer) {
+			withInvoice(s, "unmatched.pdf", underID, noMatch, `"contract_match":{"status":"suggested","suggestions":[{"number":"C-0042","score":"0.7"}]}`)
+		}, []string{"unmatched.pdf"}, ExitFailed, "unmatched.pdf (no line is matched to a contract item yet)"},
+		{"a review page not built yet", func(s *uploadServer) {
+			withInvoice(s, "unmatched.pdf", underID, noMatch, `"contract_match":{"status":"none"}`,
+				`"review":{"analysis_pending":true,"message":"The review is not ready yet."}`)
+		}, []string{"unmatched.pdf"}, ExitFailed,
+			"unmatched.pdf (its review page is not ready, so firmfact has not compared it with a contract)"},
 		{"someone else's upload", func(s *uploadServer) {
 			s.has("theirs.pdf", content("theirs.pdf"))
 			s.docs[0].own = false
@@ -399,12 +419,17 @@ func TestPercentOver(t *testing.T) {
 }
 
 // A document the check has nothing to hold to passes: not an invoice, no
-// contract to compare with, or one the exit status accounts for already.
+// contract to compare with (none matched, or one still to be made), no
+// lines, or one the exit status accounts for already.
 func TestCheckVariancePasses(t *testing.T) {
 	anyVariance := upload.Threshold{}
 	for _, d := range []*upload.Document{
 		{Own: true, State: upload.StateReadyForReview, Type: "contract"},
 		{Own: true, State: upload.StateReadyForReview, Type: "invoice", Variance: &upload.Variance{Status: "not_available", Reason: "no_match"}},
+		{
+			Own: true, State: upload.StateReadyForReview, Type: "invoice", ContractMatch: &upload.ContractMatch{Status: "none"},
+			Variance: &upload.Variance{Status: "not_available", Reason: "no_match"}, Review: &upload.Review{URL: "https://firmfact.example/r"},
+		},
 		{Own: true, State: upload.StateReadyForReview, Type: "invoice", Variance: &upload.Variance{Status: "not_available", Reason: "new_contract"}},
 		{Own: true, State: upload.StateReadyForReview, Type: "invoice", Variance: &upload.Variance{Status: "not_available", Reason: "no_lines"}},
 		{Own: true, State: upload.StateReadyForReview, Type: "invoice", Variance: &upload.Variance{Status: "none"}},

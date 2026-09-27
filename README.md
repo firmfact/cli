@@ -508,21 +508,22 @@ firmfact upload ~/Invoices/2026-09 -r --workspace Acme --jq '.data.results[] | [
 firmfact upload HR-2026-09.xlsx --workspace Acme --jq '.data.results[].document.read.records[]? | [.type, .total, .new, .changed] | @tsv'
 ```
 
-In a pipeline, `--fail-on-variance` holds each invoice to its contract
-once firmfact has read it: the upload ends with exit status 9 when an
-invoice's variance preview is further from the contract than the threshold
-allows, above or below it. The threshold follows an `=`: a percentage of
-the contracted amount (`--fail-on-variance=2%`) or an amount in the
-invoice's currency (`--fail-on-variance=50`). An invoice exactly at it
-passes, and without a value, any variance of a cent or more counts.
-Documents that are not invoices, and invoices firmfact did not match to a
-contract, never exceed it. A document whose variance cannot be checked
-(someone else's upload, whose results only they see, or an invoice whose
-contract you may not view or whose preview firmfact could not work out)
-makes the exit status 1, as a document that could not be read does, and a
-wait that ran out makes it 5: so 9 means that everything else went well,
-and the error names the invoices over the threshold whatever the status.
-With `--json`, `meta.variance_exceeded` lists the files over it, by their
+In a pipeline, `--fail-on-variance` holds each invoice to its contract once
+firmfact has read it: the upload ends with exit status 9 when an invoice's
+variance preview is further from the contract than the threshold allows,
+above or below it. The threshold follows an `=`: a percentage of the
+contracted amount (`--fail-on-variance=2%`) or an amount in the invoice's
+currency (`--fail-on-variance=50`). An invoice exactly at it passes, and
+without a value, any variance of a cent or more counts. Documents that are
+not invoices, and invoices with no contract to compare them with, never
+exceed it. A document whose variance cannot be checked (someone else's
+upload, whose results only they see, or an invoice whose contract you may
+not view, whose lines are not matched to its contract yet, whose review
+page is not ready or whose preview firmfact could not work out) makes the
+exit status 1, as a document that could not be read does, and a wait that
+ran out makes it 5: so 9 means that everything else went well, and the
+error names the invoices over the threshold whatever the status. With
+`--json`, `meta.variance_exceeded` lists the files over it, by their
 `path`, and `meta.variance_unchecked` those whose variance could not be
 checked. The check needs what firmfact read, so it cannot go with
 `--no-wait`; `firmfact upload status <id>... --fail-on-variance` checks
@@ -533,7 +534,7 @@ them by id.
 status=0
 firmfact upload "$INVOICES" -r --workspace Acme --fail-on-variance=2% --jq '.meta.variance_exceeded[]' > over.txt || status=$?
 case $status in
-  0) echo "Every invoice is within 2% of its contract." ;;
+  0) echo "No invoice compared with a contract is more than 2% from it." ;;
   9) echo "More than 2% from the contract, to review before they are booked:"; cat over.txt; exit 1 ;;
   *) exit "$status" ;;
 esac
