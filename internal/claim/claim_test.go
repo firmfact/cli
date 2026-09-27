@@ -157,7 +157,13 @@ func TestSymlinkedRCKeepsItsLink(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if p.RCFile != rc || p.RCManual != "" || !strings.Contains(strings.Join(p.Notes, " "), "goes into "+target) {
+	// The plan names the resolved file. On macOS the temp dir itself sits
+	// behind a link (/var is /private/var), so resolve the expectation too.
+	resolved, err := filepath.EvalSymlinks(target)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if p.RCFile != rc || p.RCManual != "" || !strings.Contains(strings.Join(p.Notes, " "), "goes into "+resolved) {
 		t.Fatalf("plan = %+v", p)
 	}
 	must(t, Apply(env, p))
