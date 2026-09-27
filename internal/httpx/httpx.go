@@ -52,14 +52,16 @@ type Options struct {
 	FollowHTTPS bool
 }
 
-// Client sends requests and explains the ones that get no answer. It has
-// only Do, so no request can go around that.
+// Client sends requests and explains the ones that get no answer. It
+// sends only through Do, so no request can go around that.
 type Client struct {
 	hc *http.Client
 	// open is hc without the limit for the whole request, for requests
 	// whose context sets their own.
 	open          *http.Client
 	headerTimeout time.Duration
+	// options are what the client was made with, for WaitingAtLeast.
+	options Options
 }
 
 // New returns a client with the given options.
@@ -82,7 +84,24 @@ func newClient(o Options, rt http.RoundTripper) *Client {
 	}
 	open := *hc
 	open.Timeout = 0
-	return &Client{hc: hc, open: &open, headerTimeout: o.HeaderTimeout}
+	return &Client{hc: hc, open: &open, headerTimeout: o.HeaderTimeout, options: o}
+}
+
+// Timeout is the client's limit for a whole request.
+func (c *Client) Timeout() time.Duration { return c.hc.Timeout }
+
+// WaitingAtLeast is c, or a client like it that waits d for the server to
+// start answering when c would give up sooner. An upload needs it: the
+// server reads every file it was sent before it answers, which can take
+// longer than the usual 30 s. The new client has transports of its own,
+// shared with any other client that waits as long.
+func (c *Client) WaitingAtLeast(d time.Duration) *Client {
+	if d <= c.headerTimeout {
+		return c
+	}
+	o := c.options
+	o.Timeout, o.HeaderTimeout = c.hc.Timeout, d
+	return New(o)
 }
 
 // Do sends req. A request that gets no answer returns an *Error, or an

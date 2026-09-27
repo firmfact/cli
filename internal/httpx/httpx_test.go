@@ -230,8 +230,8 @@ func TestTooSlow(t *testing.T) {
 		300 * time.Millisecond:  "300ms",
 		1500 * time.Millisecond: "1.5s",
 	} {
-		if got := span(d); got != want {
-			t.Errorf("span(%s) = %q, want %q", d, got, want)
+		if got := Span(d); got != want {
+			t.Errorf("Span(%s) = %q, want %q", d, got, want)
 		}
 	}
 }
@@ -415,5 +415,48 @@ func TestProxyForThisMachine(t *testing.T) {
 	}
 	if _, err := ProxyFor("http://%zz"); err == nil {
 		t.Error("ProxyFor took a target that is not a URL")
+	}
+}
+
+// An upload's client waits longer for the answer than the usual 30 s, and
+// keeps the rest of what the client it came from was made with; a client
+// that already waits that long is used as it is.
+func TestWaitingAtLeast(t *testing.T) {
+	host := silentListener(t)
+	c := New(Options{Timeout: 5 * time.Second, HeaderTimeout: 100 * time.Millisecond})
+	if c.Timeout() != 5*time.Second {
+		t.Errorf("Timeout() = %s", c.Timeout())
+	}
+	if c.WaitingAtLeast(50*time.Millisecond) != c || c.WaitingAtLeast(100*time.Millisecond) != c {
+		t.Error("a shorter or equal wait must give the same client")
+	}
+	patient := c.WaitingAtLeast(400 * time.Millisecond)
+	if patient == c || patient.Timeout() != 5*time.Second || patient.options.FollowHTTPS {
+		t.Fatalf("got %+v", patient.options)
+	}
+	start := time.Now()
+	err := get(t, patient, context.Background(), host+"/api/v1/cli/workspaces/Demo/documents")
+	took := time.Since(start)
+	var e *Error
+	if !errors.As(err, &e) || e.Kind != AnswerTimeout || !strings.HasSuffix(e.Error(), "did not answer within 400ms") {
+		t.Fatalf("want the 400ms wait, got %v", err)
+	}
+	if took < 400*time.Millisecond || took > 3*time.Second {
+		t.Errorf("gave up after %s", took)
+	}
+	if follow := New(Options{FollowHTTPS: true}).WaitingAtLeast(time.Minute); !follow.options.FollowHTTPS || follow.headerTimeout != time.Minute {
+		t.Errorf("a client that follows redirects must still: %+v", follow.options)
+	}
+}
+
+// NewError says what the caller says, and keeps the cause.
+func TestNewError(t *testing.T) {
+	cause := io.ErrUnexpectedEOF
+	e := NewError(Stalled, "firmfact.com", cause, "firmfact.com stopped taking the upload")
+	if e.Error() != "firmfact.com stopped taking the upload" || e.Kind != Stalled || e.Host != "firmfact.com" || !errors.Is(e, cause) {
+		t.Errorf("got %#v", e)
+	}
+	if Cause(&url.Error{Op: "Post", URL: "https://firmfact.com", Err: cause}) != "the connection closed before an answer came" {
+		t.Errorf("Cause = %q", Cause(cause))
 	}
 }

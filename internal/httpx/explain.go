@@ -33,6 +33,9 @@ const (
 	AnswerTimeout
 	// Untrusted is a certificate that did not verify.
 	Untrusted
+	// Stalled is a request whose body stopped moving on its way out: the
+	// server, or something on the way to it, took no more of it.
+	Stalled
 )
 
 // Error is a request that got no answer, said in one line the user can act
@@ -48,6 +51,13 @@ type Error struct {
 
 func (e *Error) Error() string { return e.msg }
 func (e *Error) Unwrap() error { return e.Err }
+
+// NewError is an *Error of kind, for host, that says msg: for a caller that
+// knows better than the transport what went wrong, such as a client that
+// gave up on an upload that stopped moving.
+func NewError(kind Kind, host string, err error, msg string) *Error {
+	return &Error{Kind: kind, Host: host, Err: err, msg: msg}
+}
 
 // Broken reports whether err is a request whose connection broke: the other
 // end reset it, or closed it before an answer came. The request may or may
@@ -69,7 +79,7 @@ func Broken(err error) bool {
 // wait that ran out.
 func TooSlow(host string, limit time.Duration, err error) *Error {
 	return &Error{Kind: AnswerTimeout, Host: host, Err: err,
-		msg: fmt.Sprintf("%s did not finish answering within %s", host, span(limit))}
+		msg: fmt.Sprintf("%s did not finish answering within %s", host, Span(limit))}
 }
 
 // explain turns the error of a request that got as far as p into an
@@ -130,7 +140,7 @@ func (c *Client) explain(req *http.Request, err error, p *progress) error {
 	case errors.As(err, &netErr) && netErr.Timeout():
 		e.Kind, e.msg = c.timedOut(p, who)
 	default:
-		e.msg = fmt.Sprintf("could not reach %s: %s", who, cause(err))
+		e.msg = fmt.Sprintf("could not reach %s: %s", who, Cause(err))
 	}
 	return e
 }
@@ -141,9 +151,9 @@ func (c *Client) explain(req *http.Request, err error, p *progress) error {
 func (c *Client) timedOut(p *progress, who string) (Kind, string) {
 	limit := func(step time.Duration) string {
 		if !p.open && time.Since(p.start) >= c.hc.Timeout {
-			return span(c.hc.Timeout)
+			return Span(c.hc.Timeout)
 		}
-		return span(step)
+		return Span(step)
 	}
 	switch {
 	case p.connected.Load():
@@ -154,9 +164,9 @@ func (c *Client) timedOut(p *progress, who string) (Kind, string) {
 	return ConnectTimeout, fmt.Sprintf("%s did not accept a connection within %s", who, limit(DialTimeout))
 }
 
-// cause is the part of err that says what happened, without Go's
+// Cause is the part of err that says what happened, without Go's
 // `Get "url": dial tcp 1.2.3.4:443: connect:` prefixes.
-func cause(err error) string {
+func Cause(err error) string {
 	var (
 		urlErr *url.Error
 		opErr  *net.OpError
@@ -177,8 +187,8 @@ func cause(err error) string {
 	return err.Error()
 }
 
-// span writes a limit the way the flags take it: 30s, 90s, 5m, 500ms, 1.5s.
-func span(d time.Duration) string {
+// Span writes a limit the way the flags take it: 30s, 90s, 5m, 500ms, 1.5s.
+func Span(d time.Duration) string {
 	switch {
 	case d >= 2*time.Minute && d%time.Minute == 0:
 		return fmt.Sprintf("%dm", d/time.Minute)

@@ -48,6 +48,9 @@ type Client struct {
 	// and the reasons for its retries and renewals (--debug). Nil logs
 	// nothing.
 	Debug *DebugLog
+	// Pace bounds the requests that stream their body (SendBody). A field
+	// left at zero takes DefaultPace's value.
+	Pace Pace
 	// Token is loaded lazily; nil means "not signed in". mu guards it, as
 	// requests may be sent at once (workspaces list reads each workspace's
 	// setup that way), and any of them may renew it.
@@ -175,9 +178,19 @@ func (c *Client) JSON(ctx context.Context, method, path string, body, out any, a
 // only earn "Invalid session" with it, at the cost of a request against
 // the rate limit. The MCP client then opens a new session.
 func (c *Client) Send(ctx context.Context, method, path string, payload []byte, headers map[string]string, auth bool) (*http.Response, error) {
+	return c.send(ctx, headers, auth, 0, func(ctx context.Context) (*http.Response, error) {
+		return c.do(ctx, method, path, payload, headers, auth)
+	})
+}
+
+// send runs once, which makes one attempt at a request, as often as the
+// request needs: again after a busy answer, and again after a 401 once the
+// token is renewed. With auth, the token must be good for at least fresh
+// (see ensureFreshToken).
+func (c *Client) send(ctx context.Context, headers map[string]string, auth bool, fresh time.Duration, once func(context.Context) (*http.Response, error)) (*http.Response, error) {
 	mcpSession := headers["mcp-session-id"] != ""
 	if auth {
-		renewed, err := c.ensureFreshToken(ctx)
+		renewed, err := c.ensureFreshToken(ctx, fresh)
 		if err != nil {
 			return nil, err
 		}
@@ -186,7 +199,7 @@ func (c *Client) Send(ctx context.Context, method, path string, payload []byte, 
 			return nil, ErrInvalidSession
 		}
 	}
-	resp, err := c.attempt(ctx, method, path, payload, headers, auth)
+	resp, err := c.attempt(ctx, headers, once)
 	if err != nil {
 		return nil, err
 	}
@@ -200,7 +213,7 @@ func (c *Client) Send(ctx context.Context, method, path string, payload []byte, 
 			c.Debugf("the MCP session belongs to the old token, so a new one is needed")
 			return nil, ErrInvalidSession
 		}
-		if resp, err = c.attempt(ctx, method, path, payload, headers, auth); err != nil {
+		if resp, err = c.attempt(ctx, headers, once); err != nil {
 			return nil, err
 		}
 	}
@@ -216,11 +229,11 @@ func (c *Client) Send(ctx context.Context, method, path string, payload []byte, 
 }
 
 // attempt sends the request, waiting out a busy server, and turns the
-// MCP server's refusal of the session id into ErrInvalidSession. Send runs
+// MCP server's refusal of the session id into ErrInvalidSession. send runs
 // it for the retry after a renewal too, so no answer reaches the user as a
 // bare "Invalid session".
-func (c *Client) attempt(ctx context.Context, method, path string, payload []byte, headers map[string]string, auth bool) (*http.Response, error) {
-	resp, err := c.doRetrying(ctx, method, path, payload, headers, auth)
+func (c *Client) attempt(ctx context.Context, headers map[string]string, once func(context.Context) (*http.Response, error)) (*http.Response, error) {
+	resp, err := c.doRetrying(ctx, once)
 	if err != nil || resp.StatusCode != http.StatusUnauthorized || headers["mcp-session-id"] == "" {
 		return resp, err
 	}
@@ -236,13 +249,14 @@ func (c *Client) attempt(ctx context.Context, method, path string, payload []byt
 
 // doRetrying waits and retries when the server says it is busy and when
 // to come back: a 429 (a rate limit) or a 503 (the MCP endpoint's capacity
-// guard, "Unable to acquire capacity, please retry"), with a Retry-After
-// of up to 30 s. The server turned the request away before doing anything
-// with it, so sending it again is safe. A 503 without Retry-After is a
-// server that is down rather than busy, and is not retried.
-func (c *Client) doRetrying(ctx context.Context, method, path string, payload []byte, headers map[string]string, auth bool) (*http.Response, error) {
+// guard, "Unable to acquire capacity, please retry"; an upload's virus
+// scanner, busy with others), with a Retry-After of up to 30 s. The server
+// turned the request away before doing anything with it, so sending it
+// again is safe. A 503 without Retry-After is a server that is down rather
+// than busy, and is not retried.
+func (c *Client) doRetrying(ctx context.Context, once func(context.Context) (*http.Response, error)) (*http.Response, error) {
 	for attempt := 0; ; attempt++ {
-		resp, err := c.do(ctx, method, path, payload, headers, auth)
+		resp, err := once(ctx)
 		if err != nil || !busy(resp.StatusCode) {
 			return resp, err
 		}
@@ -333,6 +347,23 @@ func (c *Client) do(ctx context.Context, method, path string, payload []byte, he
 	if payload != nil {
 		body = bytes.NewReader(payload)
 	}
+	req, err := c.newRequest(ctx, method, path, body, headers, auth)
+	if err != nil {
+		return nil, err
+	}
+	c.logRequest(req, payload, nil)
+	start := time.Now()
+	// Unanswered requests come back as one line that says why (an
+	// *httpx.Error), and interrupted ones as the context's error: stopping
+	// is not a connection problem.
+	resp, err := c.HTTP.Do(req)
+	c.logAnswer(req, resp, err, time.Since(start))
+	return resp, err
+}
+
+// newRequest is a request for path on the client's host, with the CLI's
+// own headers, then headers, then with auth the token.
+func (c *Client) newRequest(ctx context.Context, method, path string, body io.Reader, headers map[string]string, auth bool) (*http.Request, error) {
 	req, err := http.NewRequestWithContext(ctx, method, c.Host+path, body)
 	if err != nil {
 		return nil, err
@@ -352,14 +383,7 @@ func (c *Client) do(ctx context.Context, method, path string, payload []byte, he
 		}
 		req.Header.Set("Authorization", "Bearer "+t.AccessToken)
 	}
-	c.logRequest(req, payload)
-	start := time.Now()
-	// Unanswered requests come back as one line that says why (an
-	// *httpx.Error), and interrupted ones as the context's error: stopping
-	// is not a connection problem.
-	resp, err := c.HTTP.Do(req)
-	c.logAnswer(req, resp, err, time.Since(start))
-	return resp, err
+	return req, nil
 }
 
 // Raw sends one request without a token and returns whatever answer comes,
@@ -393,9 +417,14 @@ const (
 	maxRetryAfter  = 30 * time.Second
 )
 
-// ensureFreshToken renews a token that has expired by the CLI's clock, and
-// says whether it did.
-func (c *Client) ensureFreshToken(ctx context.Context) (renewed bool, err error) {
+// ensureFreshToken renews a token that has expired by the CLI's clock, or
+// that runs out within fresh, and says whether it did.
+//
+// fresh is for a request that takes long to send, such as an upload. The
+// server reads the token once it has the whole body, so a token that runs
+// out on the way is refused only then, and the whole body would have to be
+// sent again. Renewing it first costs one small request.
+func (c *Client) ensureFreshToken(ctx context.Context, fresh time.Duration) (renewed bool, err error) {
 	t, err := c.Token()
 	if err != nil {
 		return false, err
@@ -403,14 +432,21 @@ func (c *Client) ensureFreshToken(ctx context.Context) (renewed bool, err error)
 	if t == nil {
 		return false, ErrNotSignedIn
 	}
-	if t.Expired() && c.canRefresh() {
-		c.Debugf("the access token has expired by this machine's clock; renewing it first")
-		if err := c.refresh(ctx); err != nil {
-			return false, err
-		}
-		return true, nil
+	if !c.canRefresh() {
+		return false, nil
 	}
-	return false, nil
+	switch {
+	case t.Expired():
+		c.Debugf("the access token has expired by this machine's clock; renewing it first")
+	case fresh > 0 && !t.ExpiresAt.IsZero() && time.Now().Add(fresh).After(t.ExpiresAt):
+		c.Debugf("the access token runs out within the %s this request may take; renewing it first", fresh.Round(time.Second))
+	default:
+		return false, nil
+	}
+	if err := c.refresh(ctx); err != nil {
+		return false, err
+	}
+	return true, nil
 }
 
 func (c *Client) canRefresh() bool {

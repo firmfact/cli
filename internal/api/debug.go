@@ -99,8 +99,10 @@ func (c *Client) Debugf(format string, args ...any) {
 	c.Debug.Printf(format, args...)
 }
 
-// logRequest writes req, its headers and its body to the debug log.
-func (c *Client) logRequest(req *http.Request, payload []byte) {
+// logRequest writes req, its headers and its body to the debug log: the
+// payload of a small body, and only the size and description of a streamed
+// one, whose bytes are a user's files.
+func (c *Client) logRequest(req *http.Request, payload []byte, stream Body) {
 	if c.Debug == nil {
 		return
 	}
@@ -116,6 +118,13 @@ func (c *Client) logRequest(req *http.Request, payload []byte) {
 	}
 	if len(payload) > 0 {
 		lines = append(lines, "  "+bodyForLog(req.URL.Path, req.Header.Get("Content-Type"), payload))
+	}
+	if stream != nil {
+		line := fmt.Sprintf("  (a body of %s, not shown)", ui.Bytes(stream.Size()))
+		if d, ok := stream.(fmt.Stringer); ok {
+			line += " " + clip(d.String())
+		}
+		lines = append(lines, line)
 	}
 	c.Debug.write(lines...)
 }

@@ -1,0 +1,68 @@
+{
+  "success": true,
+  "data": {
+    "id": "423a2262-85dd-4cf1-9b51-60c7bbf2ff7d",
+    "state": "ready_for_review",
+    "url": "https://app.firmfact.example/accounts/1977ef5a-480b-4ea7-94ce-ce9fe4f308fd/documents/423a2262-85dd-4cf1-9b51-60c7bbf2ff7d",
+    "own": true,
+    "filename": "LSEG-2026-07.pdf",
+    "group_id": null,
+    "created_at": "2026-09-27T16:59:48Z",
+    "type": "invoice",
+    "publishable": true,
+    "read": {
+      "type": "invoice",
+      "vendor": {"name": "Refinitiv Limited", "status": "linked", "linked_to": "Refinitiv Limited"},
+      "legal_entity": {"name": "Acme Markets Ltd", "status": "linked", "linked_to": "Acme Markets Ltd"},
+      "number": "INV-8841207",
+      "dates": {"document": "2026-07-01", "due": "2026-07-31"},
+      "currency": "USD",
+      "amounts": {"subtotal": "1180.00", "tax": "0.00", "total": "1180.00"},
+      "checks": [{"code": "totals", "status": "pass", "message": "The line amounts add up to the amount stated on the document."}],
+      "lines": [
+        {"number": 1, "description": "Workspace Pro Licence, July 2026", "quantity": "10", "unit_price": "103.00",
+         "amount": "1030.00", "currency": "USD", "period": {"start": "2026-07-01", "end": "2026-07-31"},
+         "item": {"status": "suggested", "id": "c9d8ecf0-2b1e-4f7a-9d61-2f4c8e0a1b22", "name": "Workspace Pro Licence", "confidence": "0.85"}},
+        {"number": 2, "description": "Real-Time Exchange Fees, July 2026", "quantity": 1, "unit_price": "150.00",
+         "amount": "150.00", "currency": "USD", "period": {"start": "2026-07-01", "end": "2026-07-31"},
+         "item": {"status": "suggested", "id": "db64ade9-7c3f-4a1e-8b90-5e2d1c3f4a55", "name": "Real-Time Exchange Fees", "confidence": 0.85},
+         "tax_code": "outside the schema"}
+      ]
+    },
+    "contract_match": {
+      "status": "linked", "how": "automatic", "score": "1", "runner_up_score": null,
+      "contract": {"id": "9283ed40-1f2e-4d3c-8b7a-6e5f4d3c2b1a", "number": "LSEG-4471", "name": "LSEG Workspace 2026",
+                   "start": "2026-01-01", "end": "2026-12-31"}
+    },
+    "variance": {
+      "preview": true, "status": "variance", "currency": "USD",
+      "amount": "30.00", "percent": "2.6", "invoiced": "1180.00", "contract": "1150.00",
+      "counts": {"lines": 2, "matched": 2, "clean": 1},
+      "summary": "USD 30.00 (2.6%) above the contract",
+      "lines": [
+        {"line": 1, "description": "Workspace Pro Licence, July 2026", "match": "suggested", "status": "variance",
+         "amount": "30.00", "driver": "unit_price", "invoiced": "103.00", "contract": "100.00",
+         "item": {"id": "c9d8ecf0-2b1e-4f7a-9d61-2f4c8e0a1b22", "name": "Workspace Pro Licence"},
+         "message": "Unit price 103.00 against 100.00 (+3.0%): +30.00"}
+      ]
+    },
+    "review": {
+      "url": "https://app.firmfact.example/accounts/1977ef5a-480b-4ea7-94ce-ce9fe4f308fd/documents/423a2262-85dd-4cf1-9b51-60c7bbf2ff7d",
+      "counts": {"total": 6, "linked": 3, "ready": 1, "suggested": 2, "needs_review": 0, "blocked": 0, "updates": 0, "skipped": 0},
+      "items": [
+        {"node": "li-0", "kind": "invoice_line", "state": "suggested", "line": 1,
+         "name": "Workspace Pro Licence, July 2026", "actions": ["map_existing", "create_new", "skip"],
+         "message": "Line 1 (Workspace Pro Licence, July 2026): confirm the suggested match or choose another."},
+        {"node": "li-1", "kind": "invoice_line", "state": "suggested", "line": 2,
+         "name": "Real-Time Exchange Fees, July 2026", "actions": ["map_existing", "create_new", "skip"],
+         "message": "Line 2 (Real-Time Exchange Fees, July 2026): confirm the suggested match or choose another."}
+      ],
+      "more_items": 0
+    },
+    "booked": false,
+    "error": null,
+    "notes": ["Nothing is booked until someone publishes it on the review page."],
+    "approvals": {"required": 2, "given": 0}
+  },
+  "meta": {"schema": "document_result/1"}
+}
