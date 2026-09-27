@@ -1,0 +1,108 @@
+[
+  [
+    {
+      "temporal_id": "1f243bbc-9b3f-4dca-a080-24a0136177df",
+      "userdef_id": "BBG-ANY-NBROOKS",
+      "name": "BBG-ANY → NBROOKS",
+      "cost": 38400.0,
+      "monthly_cost": 2953.85,
+      "product_name": "Bloomberg Anywhere",
+      "party_name": "Nina Brooks"
+    },
+    {
+      "temporal_id": "6fbb0f0e-4cc0-4587-902d-7f15f4799fd0",
+      "userdef_id": "CIQ-PRO-CWEISS",
+      "name": "CIQ-PRO → CWEISS",
+      "cost": 26265.24,
+      "monthly_cost": 2020.48,
+      "product_name": "Capital IQ Pro Workstation",
+      "party_name": "Clara Weiss"
+    },
+    {
+      "temporal_id": "bcce6995-21ff-45d8-a966-210edaf38612",
+      "userdef_id": "EUREX-ULTRA-EQR",
+      "name": "EUREX-ULTRA → EQ-RESEARCH",
+      "cost": 1243.06,
+      "monthly_cost": 95.62,
+      "product_name": "Eurex Ultra",
+      "party_name": "Equity Research"
+    },
+    {
+      "temporal_id": "32462c67-ad03-4d62-8838-e27741874e61",
+      "userdef_id": "RISK-ENGINE-QUANT",
+      "name": "RISK-ENGINE → QUANT",
+      "cost": 12000.0,
+      "monthly_cost": 923.08,
+      "product_name": null,
+      "party_name": "Quantitative Strategies"
+    },
+    {
+      "temporal_id": "a2cd5396-9c82-41e5-bdaa-7aef27eb5b57",
+      "userdef_id": "WORKSPACE-RISK-ENGINE",
+      "name": "WORKSPACE → RISK-ENGINE",
+      "cost": 18000.0,
+      "monthly_cost": null,
+      "product_name": "LSEG Workspace",
+      "party_name": null
+    }
+  ],
+  {
+    "meta": {
+      "total_count": 5,
+      "page": 1,
+      "per_page": 100,
+      "total_pages": 1,
+      "display": {
+        "schema": "list_display/1",
+        "title": "Allocations",
+        "workspace": {
+          "name": "Acme Treasury",
+          "demo": false
+        },
+        "base_currency": "USD",
+        "columns": [
+          {
+            "key": "product_name",
+            "label": "Product"
+          },
+          {
+            "key": "party_name",
+            "label": "Organisational entity"
+          },
+          {
+            "key": "cost",
+            "label": "13-month cost",
+            "kind": "money",
+            "unit": "base_currency"
+          },
+          {
+            "key": "monthly_cost",
+            "label": "This month",
+            "kind": "money",
+            "unit": "base_currency"
+          }
+        ],
+        "hidden": [
+          "temporal_id",
+          "userdef_id",
+          "name"
+        ],
+        "labels": {
+          "temporal_id": "ID",
+          "userdef_id": "Code",
+          "name": "Name",
+          "cost": "13-month cost",
+          "monthly_cost": "This month",
+          "product_name": "Product",
+          "party_name": "Organisational entity"
+        },
+        "footnotes": [
+          "13-month cost: cash basis, this month and six months either side.",
+          "This month: accrual basis.",
+          "Amounts in USD, the workspace base currency."
+        ],
+        "order": "name"
+      }
+    }
+  }
+]

@@ -95,7 +95,7 @@ func (a *App) outputFormat() outputFormat {
 }
 
 // listFlags are the CLI's own flags on a command that prints a tool's
-// answer: which columns, every page, and whether to fit the terminal. A
+// answer: which columns, every page, and every field of a list, whole. A
 // tool argument of the same name keeps its flag, and the CLI's goes
 // without; each field is nil when its flag is not there.
 type listFlags struct {
@@ -115,7 +115,7 @@ func addListFlags(cmd *cobra.Command, paged bool) listFlags {
 		f.all = cmd.Flags().Bool("all", false, fmt.Sprintf("fetch every page, %d rows at a time; with --json, one JSON row per line (NDJSON)", allPageSize))
 	}
 	if cmd.Flags().Lookup("wide") == nil {
-		f.wide = cmd.Flags().Bool("wide", false, "print every cell whole instead of fitting the table to the terminal")
+		f.wide = cmd.Flags().Bool("wide", false, "show every field, each cell whole, instead of fitting the table to the terminal")
 	}
 	return f
 }
@@ -146,6 +146,7 @@ func (f listFlags) apply(app *App, tool mcp.Tool, args map[string]any, pageGiven
 		return usageErrorf("--all fetches every page; leave out the page")
 	}
 	wide := f.wide != nil && *f.wide
+	opts.table.wide = wide
 	if opts.format == formatTable && !wide && ui.IsTerminal(app.Out) {
 		opts.table.width = ui.Width(app.Out)
 	}

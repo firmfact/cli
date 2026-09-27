@@ -29,6 +29,9 @@ type tableStyle struct {
 	columns []string
 	// width, when above zero, is the terminal's: the table is fitted to it.
 	width int
+	// wide is --wide: a list shows the fields it keeps out of its table by
+	// default too (see listFields).
+	wide bool
 }
 
 // leadingColumns come first when the rows have them, in this order: what a
@@ -76,8 +79,32 @@ func isMoneyKey(key string) bool {
 	return isCostKey(key) || strings.HasSuffix(key, "amount") || strings.HasSuffix(key, "price")
 }
 
+// tableField is a column as a table prints it: the field it shows, the
+// header above it, and what its values are.
+type tableField struct {
+	key, header string
+	// money formats the values as amounts: to the cent, their thousands
+	// grouped.
+	money bool
+	// unit is what the amounts are in, as meta.display names it
+	// ("base_currency"); empty when not known.
+	unit string
+}
+
+// keyFields are the columns keys name, headed by the keys themselves, as
+// the table of an answer that is not a list shows them. Amounts of money
+// are told by their names (see isMoneyKey).
+func keyFields(keys []string) []tableField {
+	fields := make([]tableField, len(keys))
+	for i, k := range keys {
+		fields[i] = tableField{key: k, header: ui.SafeLine(strings.ToUpper(k)), money: isMoneyKey(k)}
+	}
+	return fields
+}
+
 // tableColumn is one column of a table as it prints.
 type tableColumn struct {
+	field  tableField
 	header string
 	cells  []string
 	// right aligns the column on its last character: every value in it is
@@ -106,25 +133,72 @@ func printTable(w, notes io.Writer, rows []map[string]any, style tableStyle) err
 	if len(keys) == 0 {
 		return nil
 	}
-	cols := make([]tableColumn, len(keys))
-	for i, k := range keys {
-		cols[i] = buildColumn(k, rows)
+	t := layTable(rows, keyFields(keys), style.width)
+	t.noteDropped(notes)
+	return t.write(w)
+}
+
+// laidOut is a table with its columns built and, for a terminal, fitted
+// to it: ready to print, and as wide as it will print.
+type laidOut struct {
+	cols []tableColumn
+	rows int
+	// dropped are the fields of the columns left out to fit.
+	dropped []tableField
+}
+
+// layTable builds a column for each of fields and, when width is above
+// zero, fits them into it (see fitColumns).
+func layTable(rows []map[string]any, fields []tableField, width int) laidOut {
+	cols := make([]tableColumn, len(fields))
+	for i, f := range fields {
+		cols[i] = buildColumn(f, rows)
 	}
-	if style.width > 0 {
-		kept, dropped := fitColumns(cols, style.width)
-		cols = kept
-		if len(dropped) > 0 {
-			names := make([]string, len(dropped))
-			for i, k := range keys[len(kept):] {
-				names[i] = ui.SafeLine(k)
-			}
-			fmt.Fprintf(notes, "note: %d %s left out to fit the terminal (%s); --wide shows every column, --columns picks them.\n",
-				len(dropped), plural(len(dropped), "column", "columns"), strings.Join(names, ", "))
+	t := laidOut{cols: cols, rows: len(rows)}
+	if width > 0 && len(cols) > 0 {
+		kept, dropped := fitColumns(cols, width)
+		t.cols = kept
+		for _, c := range dropped {
+			t.dropped = append(t.dropped, c.field)
 		}
+	}
+	return t
+}
+
+// width is how many columns the widest line of the table takes.
+func (t laidOut) width() int {
+	if len(t.cols) == 0 {
+		return 0
+	}
+	sum := columnGap * (len(t.cols) - 1)
+	for _, c := range t.cols {
+		sum += c.width
+	}
+	return sum
+}
+
+// noteDropped says on notes which columns were left out to fit, by the
+// names --columns takes.
+func (t laidOut) noteDropped(notes io.Writer) {
+	if len(t.dropped) == 0 {
+		return
+	}
+	names := make([]string, len(t.dropped))
+	for i, f := range t.dropped {
+		names[i] = ui.SafeLine(f.key)
+	}
+	fmt.Fprintf(notes, "note: %d %s left out to fit the terminal (%s); --wide shows every column, --columns picks them.\n",
+		len(t.dropped), plural(len(t.dropped), "column", "columns"), strings.Join(names, ", "))
+}
+
+// write prints the header and a line per row.
+func (t laidOut) write(w io.Writer) error {
+	if len(t.cols) == 0 {
+		return nil
 	}
 	line := func(cell func(c tableColumn) string) string {
 		var b strings.Builder
-		for i, c := range cols {
+		for i, c := range t.cols {
 			if i > 0 {
 				b.WriteString(strings.Repeat(" ", columnGap))
 			}
@@ -141,7 +215,7 @@ func printTable(w, notes io.Writer, rows []map[string]any, style tableStyle) err
 	if _, err := fmt.Fprintln(w, line(func(c tableColumn) string { return c.header })); err != nil {
 		return err
 	}
-	for r := range rows {
+	for r := range t.rows {
 		if _, err := fmt.Fprintln(w, line(func(c tableColumn) string { return c.cells[r] })); err != nil {
 			return err
 		}
@@ -150,15 +224,16 @@ func printTable(w, notes io.Writer, rows []map[string]any, style tableStyle) err
 }
 
 // buildColumn formats one column of rows: amounts of money to the cent
-// with their thousands grouped, anything else as cell shows it. A column is
-// aligned right when all its values are numbers, whether the server sent
-// them as JSON numbers or, as it does for exact decimals, as strings.
-func buildColumn(key string, rows []map[string]any) tableColumn {
-	c := tableColumn{header: ui.SafeLine(strings.ToUpper(key)), cells: make([]string, len(rows))}
-	money := isMoneyKey(key)
+// with their thousands grouped, anything else as cell shows it, and no
+// value as a blank. A column is aligned right when all its values are
+// numbers, whether the server sent them as JSON numbers or, as it does for
+// exact decimals, as strings.
+func buildColumn(f tableField, rows []map[string]any) tableColumn {
+	c := tableColumn{field: f, header: f.header, cells: make([]string, len(rows))}
+	money := f.money
 	numbers, values := true, 0
 	for i, row := range rows {
-		v := row[key]
+		v := row[f.key]
 		if v == nil || v == "" {
 			continue
 		}

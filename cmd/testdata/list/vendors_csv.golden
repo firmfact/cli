@@ -1,0 +1,10 @@
+name,userdef_id,cost,monthly_cost,currency_userdef_id,temporal_id
+Bloomberg Finance L.P.,BLOOMBERG,1262160,97089.23,USD,0b7e2f9c-5d41-4c8e-9a53-2f1e6c7d8a90
+CryptoCompare Limited,CRYPTOCOMPARE,18000,1384.62,GBP,e41c6a2b-9f07-4d3e-b8a1-6c5d2e9f0a17
+Deutsche Börse AG,DEUTSCHE_BOERSE,,,EUR,7a93d0e5-2b6c-4f18-8e4d-a1b2c3d4e5f6
+FactSet Research Systems Inc.,FACTSET,412500,31730.77,USD,c2d5e8f1-3a4b-4c6d-9e0f-1a2b3c4d5e6f
+ICE Data Services,ICE_DATA,96840.5,7449.27,USD,3f6a9c2e-8b1d-4e7f-a0c3-5d8e1f4a7b2c
+LSEG Data & Analytics,LSEG,853220.18,65632.32,GBP,9d2e5f8a-1b4c-4d7e-8f0a-3b6c9d2e5f81
+--- stderr ---
+37 vendors (page 1 of 7; use --page 2 or --all).
+Sample data in the Demo workspace, not your own spend.

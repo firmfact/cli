@@ -1,0 +1,14 @@
+Allocations in Acme Treasury                                      costs in USD
+
+PRODUCT                     ORGANISATIONAL ENTITY    13-MONTH COST  THIS MONTH
+Bloomberg Anywhere          Nina Brooks                  38,400.00    2,953.85
+Capital IQ Pro Workstation  Clara Weiss                  26,265.24    2,020.48
+Eurex Ultra                 Equity Research               1,243.06       95.62
+                            Quantitative Strategies      12,000.00      923.08
+LSEG Workspace                                           18,000.00
+
+13-month cost: cash basis, this month and six months either side.
+This month: accrual basis.
+Amounts in USD, the workspace base currency.
+--- stderr ---
+5 allocations.

@@ -23,7 +23,7 @@ Flags:
       --arg stringArray   tool argument as key=value (repeatable)
       --columns strings   the columns to print, in order (comma-separated); where the tool takes fields, also the fields it sends
   -h, --help              help for call
-      --wide              print every cell whole instead of fitting the table to the terminal
+      --wide              show every field, each cell whole, instead of fitting the table to the terminal
   -y, --yes               go ahead without asking first when the tool may delete or overwrite data
 
 Global Flags:

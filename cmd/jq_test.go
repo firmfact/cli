@@ -36,7 +36,7 @@ func TestJQFiltersAToolResult(t *testing.T) {
 		if err != nil || stdout != c.want {
 			t.Errorf("--jq %q = %q (%v), want %q", c.expr, stdout, err, c.want)
 		}
-		if !strings.Contains(stderr, "Demo workspace: this is sample data.") {
+		if stderr != "Sample data in a Demo workspace, not your own spend.\n" {
 			t.Errorf("--jq %q: stderr = %q", c.expr, stderr)
 		}
 	}

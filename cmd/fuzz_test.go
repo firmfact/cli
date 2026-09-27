@@ -47,9 +47,9 @@ func renderedAnswers(f *testing.F) []string {
 }
 
 // FuzzFindRows takes an answer of two text blocks, as a list comes (the
-// rows, then the paging block), through everything that reads it: sorting
-// the blocks into data, meta and notes, finding the rows, and printing the
-// answer in every format. The rows found are the same each time, whatever
+// rows, then the paging block with its display block), through everything
+// that reads it: sorting the blocks into data, meta and notes, finding the
+// rows, and printing the answer in every format, as a list. The rows found are the same each time, whatever
 // order Go visits a map in; no format lets a terminal control through;
 // and --json parses to exactly the answer.
 func FuzzFindRows(f *testing.F) {
@@ -57,6 +57,13 @@ func FuzzFindRows(f *testing.F) {
 	for _, answer := range renderedAnswers(f) {
 		f.Add(answer, paging)
 	}
+	// Lists as the service sends them, display block and all: the rows,
+	// then the paging block.
+	for _, name := range []string{"vendors_demo", "vendors_old", "allocations"} {
+		blocks := listBlocks(f, name)
+		f.Add(blocks[len(blocks)-2], blocks[len(blocks)-1])
+	}
+	f.Add(`[{"name":"Acme","cost":1}]`, `{"meta":{"total_count":1,"display":{"schema":"list_display/1","title":"T\u001b]0;x\u0007","workspace":{"name":"\u202e","demo":true},"base_currency":"\u009b","columns":[{"key":"cost","label":"\u001b[2J","kind":"money","unit":"base_currency"}],"footnotes":["\u001b]52;c;eA==\u0007"],"notice":"\u0007"}}}`)
 	f.Add("Demo workspace: this is sample data.", `{"workspace_data_source":"demo_sample_data","data":[{"name":"Acme","id":"v1","cost":"12.5"}]}`)
 	f.Add(`[{"name":"Acme","tags":["a","b"]},{"name":"Globex","monthly_cost":1234.5}]`, `{"total_count":2,"truncated":false}`)
 	f.Add(`{"response":"line one\nline two \u001b]52;c;cm0gLXJmIH4=\u0007","thread_id":7}`, "")

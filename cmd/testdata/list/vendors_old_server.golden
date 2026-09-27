@@ -1,0 +1,10 @@
+NAME                           CODE                     COST  THIS MONTH  INVOICING CURRENCY
+Bloomberg Finance L.P.         BLOOMBERG        1,262,160.00   97,089.23  USD
+ICE Data Services              ICE_DATA            96,840.50    7,449.27  USD
+Deutsche Börse AG              DEUTSCHE_BOERSE                            EUR
+LSEG Data & Analytics          LSEG               853,220.18   65,632.32  GBP
+FactSet Research Systems Inc.  FACTSET            412,500.00   31,730.77  USD
+CryptoCompare Limited          CRYPTOCOMPARE       18,000.00    1,384.62  GBP
+--- stderr ---
+37 vendors (page 1 of 7; use --page 2 or --all).
+Sample data in a Demo workspace, not your own spend.

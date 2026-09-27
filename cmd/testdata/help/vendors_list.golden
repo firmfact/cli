@@ -14,7 +14,7 @@ Flags:
       --limit int            Maximum number of records to return. (default: 100) (from 1 to 200)
       --page int             Page number. Keep query, fields and limit unchanged when fetching subsequent pages. (default: 1) (at least 1)
       --query string         Search term matched against the record name.
-      --wide                 print every cell whole instead of fitting the table to the terminal
+      --wide                 show every field, each cell whole, instead of fitting the table to the terminal
 
 Global Flags:
       --debug              log each request and answer on stderr, with secrets redacted (or set FIRMFACT_DEBUG=1)

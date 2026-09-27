@@ -1,0 +1,16 @@
+Vendors in Demo (sample data)                                                                                          costs in EUR
+
+NAME                           CODE             13-MONTH COST  THIS MONTH  ID                                    INVOICING CURRENCY
+Bloomberg Finance L.P.         BLOOMBERG         1,262,160.00   97,089.23  0b7e2f9c-5d41-4c8e-9a53-2f1e6c7d8a90  USD
+CryptoCompare Limited          CRYPTOCOMPARE        18,000.00    1,384.62  e41c6a2b-9f07-4d3e-b8a1-6c5d2e9f0a17  GBP
+Deutsche Börse AG              DEUTSCHE_BOERSE                             7a93d0e5-2b6c-4f18-8e4d-a1b2c3d4e5f6  EUR
+FactSet Research Systems Inc.  FACTSET             412,500.00   31,730.77  c2d5e8f1-3a4b-4c6d-9e0f-1a2b3c4d5e6f  USD
+ICE Data Services              ICE_DATA             96,840.50    7,449.27  3f6a9c2e-8b1d-4e7f-a0c3-5d8e1f4a7b2c  USD
+LSEG Data & Analytics          LSEG                853,220.18   65,632.32  9d2e5f8a-1b4c-4d7e-8f0a-3b6c9d2e5f81  GBP
+
+13-month cost: cash basis, this month and six months either side.
+This month: accrual basis.
+Amounts in EUR, the workspace base currency.
+--- stderr ---
+37 vendors (page 1 of 7; use --page 2 or --all).
+Sample data in the Demo workspace, not your own spend.

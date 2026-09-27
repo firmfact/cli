@@ -106,7 +106,7 @@ func TestDelimitedOutput(t *testing.T) {
 }
 
 // A workspace command prints its rows as CSV or TSV on stdout alone, with
-// the notes and the total on stderr; an answer without rows is refused
+// the count and the Demo notice on stderr; an answer without rows is refused
 // rather than printed as something a program reading rows would choke on.
 func TestFormatFlag(t *testing.T) {
 	isolate(t)
@@ -120,7 +120,7 @@ func TestFormatFlag(t *testing.T) {
 	if stdout != "name,id,annual_cost\nAcme,v1,1200.5\nGlobex,v2,80\n" {
 		t.Errorf("csv = %q", stdout)
 	}
-	if !strings.Contains(stderr, "Demo workspace: this is sample data.") || !strings.Contains(stderr, "3 total (page 1 of 2; use --page 2 or --all)") {
+	if stderr != "3 vendors (page 1 of 2; use --page 2 or --all).\nSample data in a Demo workspace, not your own spend.\n" {
 		t.Errorf("stderr = %q", stderr)
 	}
 	stdout, _, err = run("test", "--host", srv.URL, "--format", "TSV", "vendors", "list")
@@ -229,7 +229,8 @@ func pagedVendors(t *testing.T) func(toolCall) string {
 
 // --all fetches page after page at the largest limit the tool takes, until
 // total_pages, and prints them as one list: a table, CSV, or with --json
-// one row per line. A note the server repeats on each page shows once.
+// one row per line. The Demo notice the server repeats on each page shows
+// once, as a line for people.
 func TestAllFetchesEveryPage(t *testing.T) {
 	isolate(t)
 	// call fetches the list for the tools the cache lacks; list_contracts
@@ -255,7 +256,7 @@ func TestAllFetchesEveryPage(t *testing.T) {
 	if stdout != want {
 		t.Errorf("csv = %q, want %q", stdout, want)
 	}
-	if stderr != "Demo workspace: this is sample data.\n5 total\n" {
+	if stderr != "5 vendors.\nSample data in a Demo workspace, not your own spend.\n" {
 		t.Errorf("stderr = %q", stderr)
 	}
 
@@ -284,7 +285,7 @@ func TestAllFetchesEveryPage(t *testing.T) {
 	if calls := f.calls(); calls[len(calls)-1].Arguments["limit"] != float64(2) {
 		t.Errorf("--limit given with --all: %v", calls[len(calls)-1].Arguments)
 	}
-	if stderr != "Demo workspace: this is sample data.\n" {
+	if stderr != "Sample data in a Demo workspace, not your own spend.\n" {
 		t.Errorf("stderr = %q", stderr)
 	}
 
@@ -294,7 +295,7 @@ func TestAllFetchesEveryPage(t *testing.T) {
 		t.Errorf("call --all = %q (%v)", stdout, err)
 	}
 	_, stderr, err = run("test", "--host", srv.URL, "call", "list_vendors")
-	if err != nil || !strings.Contains(stderr, "5 total (page 1 of 3; use --arg page=2 or --all)") {
+	if err != nil || !strings.Contains(stderr, "5 vendors (page 1 of 3; use --arg page=2 or --all).") {
 		t.Errorf("call hint: stderr = %q (%v)", stderr, err)
 	}
 	for _, args := range [][]string{
@@ -343,7 +344,7 @@ func TestColumnsReachFields(t *testing.T) {
 	if got := mustJSON(t, f.calls()[0].Arguments["fields"]); got != `["annual_cost","name","nope"]` {
 		t.Errorf("fields = %s", got)
 	}
-	if stdout != "ANNUAL_COST  NAME    NOPE\n   1,200.50  Acme\n      80.00  Globex\n" {
+	if stdout != "ANNUAL COST  NAME    NOPE\n   1,200.50  Acme\n      80.00  Globex\n" {
 		t.Errorf("table = %q", stdout)
 	}
 	if !strings.Contains(stderr, "note: no row has the column nope.\n") {

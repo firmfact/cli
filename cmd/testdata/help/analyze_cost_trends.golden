@@ -17,7 +17,7 @@ Flags:
       --monthly                   also print the month-by-month totals, where the analysis has them
       --months-back int           Number of months to look back from current date (default: 6)
       --months-forward int        Number of months to project forward (default: 6)
-      --wide                      print every cell whole instead of fitting the table to the terminal
+      --wide                      show every field, each cell whole, instead of fitting the table to the terminal
 
 Global Flags:
       --debug              log each request and answer on stderr, with secrets redacted (or set FIRMFACT_DEBUG=1)

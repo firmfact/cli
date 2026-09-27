@@ -259,12 +259,50 @@ totals in the workspace's currency, the period it covers and its insights
 above its table. On `analyze cost-trends`, `--monthly` adds the
 month-by-month totals, marking the current month and the forecast.
 
-A table starts with the columns you look for first (name, id, userdef_id,
-status, cost, monthly_cost, currency) and then shows every other field.
-Numbers are aligned right and amounts of money grouped to the cent. On a
-terminal the table fits the window: long text is cut with an ellipsis, and
-columns that still do not fit are left out, with a note on stderr saying
-which. `--wide` prints every cell whole, as does output to a pipe or file.
+A list's table has a title that names the workspace and says when its data
+is sample data, and the currency its amounts are in:
+
+```console
+$ firmfact vendors list
+Vendors in Demo (sample data)                                costs in EUR
+
+NAME                           CODE             13-MONTH COST  THIS MONTH
+Bloomberg Finance L.P.         BLOOMBERG         1,262,160.00   97,089.23
+CryptoCompare Limited          CRYPTOCOMPARE        18,000.00    1,384.62
+Deutsche Börse AG              DEUTSCHE_BOERSE
+FactSet Research Systems Inc.  FACTSET             412,500.00   31,730.77
+ICE Data Services              ICE_DATA             96,840.50    7,449.27
+LSEG Data & Analytics          LSEG                853,220.18   65,632.32
+37 vendors (page 1 of 7; use --page 2 or --all).
+
+13-month cost: cash basis, this month and six months either side.
+This month: accrual basis.
+Amounts in EUR, the workspace base currency.
+Sample data in the Demo workspace, not your own spend.
+```
+
+The service chooses the columns and names them in the language you chose in
+firmfact. A list's amounts are in the workspace's base currency, whatever
+currency a vendor invoices in, and the footnotes say what each one covers.
+An empty cell has no value, such as a vendor with no costs in the period.
+The rows come in the service's order, by name unless the list takes
+`--sort` and you give it (`--sort cost:desc`). The count, the next page and
+the sample-data line go to stderr, so a pipe or a file gets the table and
+its footnotes alone.
+
+`--wide` adds the fields the table leaves out, such as each record's ID and
+the currency it invoices in, and `--columns` picks fields by the names
+`--json` and CSV use (`--columns name,currency_userdef_id`). A service that
+does not describe its lists yet gets every field but the internal IDs, with
+headers in words, and no title.
+
+An analysis's table starts with the columns you look for first (name, id,
+userdef_id, status, cost, monthly_cost, currency) and then shows every
+other field. Numbers are aligned right and amounts of money grouped to the
+cent. On a terminal a table fits the window: long text is cut with an
+ellipsis, and columns that still do not fit are left out, with a note on
+stderr saying which. `--wide` prints every cell whole, as does output to a
+pipe or file.
 
 A workspace command and `call` also take:
 
@@ -273,7 +311,7 @@ A workspace command and `call` also take:
 | `--format table\|json\|csv\|tsv` | how to print the answer; `--json` is `--format json` |
 | `--columns name,cost` | the columns to print, in that order; where the tool takes `fields`, it is also sent as `fields`, so the service sends only those |
 | `--all` | fetch every page, 200 rows at a time, and print them as one list; with `--json`, one JSON row per line (NDJSON), each page as it arrives |
-| `--wide` | do not fit the table to the terminal |
+| `--wide` | every field of a list, and every cell whole: the table is not fitted to the terminal |
 
 CSV and TSV print a list's rows with a header line, and the values as the
 service sent them (no grouping or rounding). CSV quotes a value with a comma,
@@ -314,9 +352,12 @@ line):
 ```
 
 `data` holds the rows of a list (an empty list is `[]`) or the answer of an
-analysis or chat. `meta` holds the paging, plus `workspace_data_source` when
-the data is Demo sample data. `notes` holds anything the service said
-alongside, such as the Demo notice, which is also printed on stderr.
+analysis or chat, every field under its own name. `meta` holds the paging,
+`workspace_data_source` when the data is Demo sample data and, for a list,
+`display`: the title, columns, labels and footnotes its table is made from
+(schema `list_display/1`). `notes` holds anything the service said
+alongside, such as its Demo notice for an assistant; stderr has one line
+for people instead.
 
 `--jq` runs the JSON through a jq expression before it prints, as the GitHub
 CLI's `--jq` does, without jq installed. It implies `--json` and works on

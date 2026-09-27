@@ -42,6 +42,9 @@ func runAllPages(ctx context.Context, app *App, c *api.Client, tool mcp.Tool, ar
 	}
 	opts.nextPage = nil // every page is here
 	var rows []any
+	// look is how the rows print: the first page's display block and Demo
+	// stamp, which the rows of every page share.
+	var look map[string]any
 	noted := map[string]bool{}
 	for page := 1; ; page++ {
 		args["page"] = page
@@ -52,9 +55,8 @@ func runAllPages(ctx context.Context, app *App, c *api.Client, tool mcp.Tool, ar
 			}
 			return err
 		}
-		// A note such as the Demo notice comes with every page; once is
-		// enough.
-		for _, note := range out.shown {
+		// A note comes with every page; once is enough.
+		for _, note := range out.notesToShow() {
 			if !noted[note] {
 				noted[note] = true
 				fmt.Fprintln(app.Err, ui.SafeText(note))
@@ -72,6 +74,14 @@ func runAllPages(ctx context.Context, app *App, c *api.Client, tool mcp.Tool, ar
 			// A server that ignores the page would repeat page 1 for ever.
 			return fmt.Errorf("asked for page %d, the server sent page %d", page, int(sent))
 		}
+		if look == nil {
+			look = map[string]any{}
+			for _, k := range []string{"display", demoMarker} {
+				if v, ok := out.Meta[k]; ok {
+					look[k] = v
+				}
+			}
+		}
 		if app.JSONOutput {
 			if err := app.writeRows(list); err != nil {
 				return err
@@ -85,11 +95,17 @@ func runAllPages(ctx context.Context, app *App, c *api.Client, tool mcp.Tool, ar
 		}
 	}
 	if app.JSONOutput {
+		if notice := (toolOutput{Meta: look}).sampleDataNotice(); notice != "" {
+			app.printNotice(notice)
+		}
 		return nil
 	}
 	// The count is of the rows printed: the list may have changed between
 	// pages.
 	merged := toolOutput{Data: rows, Meta: map[string]any{"total_count": float64(len(rows))}}
+	for k, v := range look {
+		merged.Meta[k] = v
+	}
 	if rows == nil {
 		merged.Data = []any{}
 	}

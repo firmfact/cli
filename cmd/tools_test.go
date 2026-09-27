@@ -189,7 +189,8 @@ func signedInWithTools(t *testing.T, host string, tools ...mcp.Tool) {
 
 // The generated commands come from the tool cache of the host named by
 // --host: `vendors list` calls list_vendors with the flags that were set and
-// the workspace, prints the rows as a table and the note and paging on stderr.
+// the workspace, prints the rows as a table, and the count, the paging and
+// the Demo notice on stderr.
 func TestGeneratedCommandFollowsHost(t *testing.T) {
 	isolate(t)
 	f := &mcpServer{result: vendorsResult}
@@ -211,11 +212,11 @@ func TestGeneratedCommandFollowsHost(t *testing.T) {
 	}
 
 	lines := strings.Split(strings.TrimSpace(stdout), "\n")
-	if len(lines) != 3 || strings.Join(strings.Fields(lines[0]), " ") != "NAME ID ANNUAL_COST" ||
+	if len(lines) != 3 || strings.Join(strings.Fields(lines[0]), " ") != "NAME ID ANNUAL COST" ||
 		strings.Join(strings.Fields(lines[1]), " ") != "Acme v1 1,200.50" {
 		t.Errorf("table = %q", stdout)
 	}
-	if !strings.Contains(stderr, "Demo workspace: this is sample data.") || !strings.Contains(stderr, "3 total (page 1 of 2; use --page 2 or --all)") {
+	if stderr != "3 vendors (page 1 of 2; use --page 2 or --all).\nSample data in a Demo workspace, not your own spend.\n" {
 		t.Errorf("stderr = %q", stderr)
 	}
 
@@ -294,17 +295,33 @@ func assertNoTerminalControls(t *testing.T, where, s string) {
 }
 
 // A hostile or spoofed server cannot drive the terminal through a tool: its
-// title, description, flag help, notes, table cells, paging meta and errors
-// all arrive with control characters escaped, and --json stays equivalent.
+// title, description, flag help, notes, table cells, paging meta, display
+// block and errors all arrive with control characters escaped, and --json
+// stays equivalent.
 func TestServerTextCannotDriveTheTerminal(t *testing.T) {
 	isolate(t)
 	link := "\x1b]8;;https://evil.example\x1b\\Acme\x1b]8;;\x1b\\"
 	rows := mustJSON(t, map[string]any{"workspace_data_source": "demo_sample_data", "data": []any{
-		map[string]any{"name": link, "id": "v1\u009b2K", "remark": "two\nlines\tand a tab"},
+		map[string]any{"name": link, "id": "v1\u009b2K", "remark": "two\nlines\tand a tab", "cost": 12.5},
 	}})
-	meta := mustJSON(t, map[string]any{"meta": map[string]any{"page": "1\x1b[2J", "total_pages": 2, "total_count": 3}})
+	display := map[string]any{
+		"schema":        "list_display/1",
+		"title":         "Vendors\x1b]0;pwned\x07",
+		"workspace":     map[string]any{"name": "Demo\x1b[2J", "demo": true},
+		"base_currency": "EUR\u009b31m",
+		"columns": []any{
+			map[string]any{"key": "name", "label": "Name\x1b[5m"},
+			map[string]any{"key": "remark", "label": "Re\u202emark"},
+			map[string]any{"key": "cost", "label": "Cost" + osc52, "kind": "money", "unit": "base_currency"},
+		},
+		"hidden":    []any{"id"},
+		"labels":    map[string]any{"id": "I\x1b[2Kd"},
+		"footnotes": []any{"Cost: " + osc52},
+		"notice":    "Sample\x1b[5m data.",
+	}
+	meta := mustJSON(t, map[string]any{"meta": map[string]any{"page": "1\x1b[2J", "total_pages": 2, "total_count": 3, "display": display}})
 	f := &mcpServer{result: mustJSON(t, map[string]any{"isError": false, "content": []any{
-		map[string]any{"type": "text", "text": "Demo workspace. " + osc52},
+		map[string]any{"type": "text", "text": "Heads up. " + osc52},
 		map[string]any{"type": "text", "text": rows},
 		map[string]any{"type": "text", "text": meta},
 	}})}
@@ -326,17 +343,30 @@ func TestServerTextCannotDriveTheTerminal(t *testing.T) {
 	}
 	assertNoTerminalControls(t, "stdout", stdout)
 	assertNoTerminalControls(t, "stderr", stderr)
-	if !strings.Contains(stderr, `Demo workspace. \u001b]52;c;cm0gLXJmIH4=\u0007`) {
-		t.Errorf("the note should stay readable with its escape shown: %q", stderr)
+	if !strings.Contains(stderr, `Heads up. \u001b]52;c;cm0gLXJmIH4=\u0007`) || !strings.Contains(stderr, `Sample\u001b[5m data.`) {
+		t.Errorf("the notes should stay readable with their escapes shown: %q", stderr)
 	}
 	// This tool takes no page, so there is no flag to suggest.
 	if !strings.Contains(stderr, `(page 1\u001b[2J of 2)`) {
 		t.Errorf("stderr = %q", stderr)
 	}
 	lines := strings.Split(strings.TrimSpace(stdout), "\n")
-	if len(lines) != 2 || !strings.Contains(lines[1], `\u001b]8;;https://evil.example\u001b\Acme`) ||
-		!strings.Contains(lines[1], `v1\u009b2K`) || !strings.Contains(lines[1], "two lines and a tab") {
+	if len(lines) != 6 || !strings.Contains(lines[3], `\u001b]8;;https://evil.example\u001b\Acme`) ||
+		!strings.Contains(lines[3], "two lines and a tab") || !strings.Contains(lines[3], "12.50") {
 		t.Errorf("each row must stay one line with escapes shown: %q", stdout)
+	}
+	for _, want := range []string{`Vendors\u001b]0;pwned\u0007 in Demo\u001b[2J (sample data)`, `costs in EUR\u009b31m`, `NAME\U001B[5M`, `RE\U202EMARK`, `COST\U001B]52;`, `Cost: \u001b]52;`} {
+		if !strings.Contains(stdout, want) {
+			t.Errorf("stdout lacks %q: %q", want, stdout)
+		}
+	}
+	wide, _, err := run("test", "--host", srv.URL, "vendors", "list", "--wide")
+	if err != nil {
+		t.Fatal(err)
+	}
+	assertNoTerminalControls(t, "--wide", wide)
+	if !strings.Contains(wide, `I\U001B[2KD`) || !strings.Contains(wide, `v1\u009b2K`) {
+		t.Errorf("--wide = %q", wide)
 	}
 
 	help, _, err := run("test", "--host", srv.URL, "vendors", "list", "--help")
@@ -371,7 +401,7 @@ func TestServerTextCannotDriveTheTerminal(t *testing.T) {
 	if got.Data[0]["id"] != "v1\u009b2K" || got.Data[0]["name"] != link {
 		t.Errorf("--json must still decode to the server's values, got %q", got.Data[0])
 	}
-	if len(got.Notes) != 1 || got.Notes[0] != "Demo workspace. "+osc52 {
+	if len(got.Notes) != 1 || got.Notes[0] != "Heads up. "+osc52 {
 		t.Errorf("--json notes must decode to the server's text, got %q", got.Notes)
 	}
 
@@ -471,7 +501,7 @@ func TestToolResultShapes(t *testing.T) {
 				if stdout != "No vendors found.\n" {
 					t.Errorf("stdout = %q", stdout)
 				}
-				if strings.Contains(stderr, "0 total") {
+				if strings.Contains(stderr, "0 vendors") {
 					t.Errorf("an empty list needs no total: %q", stderr)
 				}
 			default:
@@ -479,10 +509,11 @@ func TestToolResultShapes(t *testing.T) {
 					t.Errorf("want the answer as text, got %q", stdout)
 				}
 			}
-			if strings.Contains(stderr, "DEMO WORKSPACE") != tc.demo {
+			// A person gets a line of their own, not the assistant's notice.
+			if strings.Contains(stderr, "Sample data in a Demo workspace, not your own spend.") != tc.demo || strings.Contains(stderr, "DEMO WORKSPACE") {
 				t.Errorf("the Demo notice belongs on stderr for Demo data only: %q", stderr)
 			}
-			if tc.paged && !strings.Contains(stderr, "3 total (page 1 of 2; use --page 2 or --all)") {
+			if tc.paged && !strings.Contains(stderr, "3 vendors (page 1 of 2; use --page 2 or --all).") {
 				t.Errorf("stderr = %q", stderr)
 			}
 			if strings.Contains(stderr, "Use page to") {

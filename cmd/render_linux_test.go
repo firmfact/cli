@@ -165,8 +165,8 @@ func runOnTerminalStdout(t *testing.T, columns int, args ...string) string {
 	return <-shown
 }
 
-// On a terminal a table fits its width, cut with ellipses; --wide prints
-// it whole, as does a pipe.
+// On a terminal a table fits its width, cut with ellipses; a pipe gets it
+// whole, and --wide gets every field whole, ids that are UUIDs included.
 func TestTableFitsTheTerminal(t *testing.T) {
 	isolate(t)
 	t.Setenv("NO_COLOR", "1")
@@ -192,7 +192,9 @@ func TestTableFitsTheTerminal(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if strings.Contains(whole, "…") || whole != piped || !strings.Contains(whole, "Morningstar PitchBook Platform – Enterprise Tier") {
+	if strings.Contains(whole, "…") || strings.Contains(piped, "…") || !strings.Contains(whole, "Morningstar PitchBook Platform – Enterprise Tier") ||
+		!strings.Contains(whole, "118b1b32-b400-4491-ac53-d847ba35a1b9") || strings.Contains(piped, "118b1b32") ||
+		!strings.Contains(piped, "Morningstar PitchBook Platform – Enterprise Tier") {
 		t.Errorf("--wide showed:\n%s\npiped:\n%s", whole, piped)
 	}
 }

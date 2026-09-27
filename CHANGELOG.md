@@ -78,6 +78,14 @@ change with it, so they are not listed here.
   `--json` with the same three keys from every workspace command, and
   `--jq` to filter the JSON with a jq expression, no jq needed. CSV and TSV
   put a quote in front of text a spreadsheet would run as a formula.
+- A list prints under a title that names its workspace and says when the
+  data is sample data, with the columns the service chooses under its
+  labels, in the language you chose in firmfact. Amounts are grouped and
+  in the workspace's base currency, which the title line names, footnotes
+  say what each covers, and a line under the table counts the list. A Demo
+  workspace's data gets one quiet line on stderr where the service's notice
+  for an assistant was. `--wide` adds the fields the table leaves out, such
+  as IDs; CSV, TSV and `--json` keep every field under its own name.
 - An exit status for each kind of failure, and errors as JSON on stderr with
   `--json`.
 - Profiles for more than one account or host, and `FIRMFACT_HOST`,

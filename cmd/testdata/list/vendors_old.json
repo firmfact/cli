@@ -1,0 +1,67 @@
+[
+  "DEMO WORKSPACE: every figure in this response is fictitious sample data for product evaluation. It is not the user's real spend.",
+  {
+    "workspace_data_source": "demo_sample_data",
+    "data": [
+      {
+        "temporal_id": "0b7e2f9c-5d41-4c8e-9a53-2f1e6c7d8a90",
+        "userdef_id": "BLOOMBERG",
+        "name": "Bloomberg Finance L.P.",
+        "cost": 1262160.0,
+        "monthly_cost": 97089.23,
+        "currency_userdef_id": "USD"
+      },
+      {
+        "temporal_id": "3f6a9c2e-8b1d-4e7f-a0c3-5d8e1f4a7b2c",
+        "userdef_id": "ICE_DATA",
+        "name": "ICE Data Services",
+        "cost": 96840.5,
+        "monthly_cost": 7449.27,
+        "currency_userdef_id": "USD"
+      },
+      {
+        "temporal_id": "7a93d0e5-2b6c-4f18-8e4d-a1b2c3d4e5f6",
+        "userdef_id": "DEUTSCHE_BOERSE",
+        "name": "Deutsche Börse AG",
+        "cost": null,
+        "monthly_cost": null,
+        "currency_userdef_id": "EUR"
+      },
+      {
+        "temporal_id": "9d2e5f8a-1b4c-4d7e-8f0a-3b6c9d2e5f81",
+        "userdef_id": "LSEG",
+        "name": "LSEG Data & Analytics",
+        "cost": 853220.18,
+        "monthly_cost": 65632.32,
+        "currency_userdef_id": "GBP"
+      },
+      {
+        "temporal_id": "c2d5e8f1-3a4b-4c6d-9e0f-1a2b3c4d5e6f",
+        "userdef_id": "FACTSET",
+        "name": "FactSet Research Systems Inc.",
+        "cost": 412500.0,
+        "monthly_cost": 31730.77,
+        "currency_userdef_id": "USD"
+      },
+      {
+        "temporal_id": "e41c6a2b-9f07-4d3e-b8a1-6c5d2e9f0a17",
+        "userdef_id": "CRYPTOCOMPARE",
+        "name": "CryptoCompare Limited",
+        "cost": 18000.0,
+        "monthly_cost": 1384.62,
+        "currency_userdef_id": "GBP"
+      }
+    ]
+  },
+  {
+    "meta": {
+      "total_count": 37,
+      "page": 1,
+      "per_page": 6,
+      "total_pages": 7
+    },
+    "total_count": 37,
+    "truncated": true,
+    "note": "Showing 6 of 37 records. Use page to retrieve other pages."
+  }
+]

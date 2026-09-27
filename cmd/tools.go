@@ -1015,9 +1015,10 @@ func runTool(ctx context.Context, app *App, tool mcp.Tool, args map[string]any, 
 	if err != nil {
 		return err
 	}
-	// Plain-text notes (such as the Demo disclaimer) go to stderr in every
-	// format, so they stay visible without breaking --json on stdout.
-	for _, note := range out.shown {
+	// Plain-text notes go to stderr in every format, so they stay visible
+	// without breaking --json on stdout; the Demo notice for an assistant
+	// gives way to a line for people (see notesToShow).
+	for _, note := range out.notesToShow() {
 		fmt.Fprintln(app.Err, ui.SafeText(note))
 	}
 	if opts.answered != nil {
@@ -1042,15 +1043,39 @@ func callForOutput(ctx context.Context, app *App, c *api.Client, tool mcp.Tool, 
 }
 
 // printToolOutput prints a tool's answer in the format asked for, and on
-// stderr how many rows there are in all and how to get the next page.
+// stderr how many rows there are in all, how to get the next page and,
+// for sample data, a line that says so: after a list, which it is a
+// footnote of, and before any other answer, as a chat's last line is the
+// command that follows it up.
 func printToolOutput(app *App, tool mcp.Tool, out toolOutput, opts renderOptions) error {
+	list := isListAnswer(tool, out)
+	notice := out.sampleDataNotice()
+	if notice != "" && !list {
+		app.printNotice(notice)
+	}
+	if err := printToolAnswer(app, tool, out, opts, list); err != nil {
+		return err
+	}
+	if notice != "" && list {
+		app.printNotice(notice)
+	}
+	return nil
+}
+
+// printToolAnswer prints the answer itself, and after it the count.
+func printToolAnswer(app *App, tool mcp.Tool, out toolOutput, opts renderOptions, list bool) error {
 	if app.JSONOutput {
 		return app.PrintJSON(out)
 	}
-	rows, isList := out.Data.([]any)
-	empty := isList && len(rows) == 0
+	items, isList := out.Data.([]any)
+	empty := isList && len(items) == 0
+	rows := findRows(out.Data)
 	if len(opts.table.columns) > 0 {
-		noteMissingColumns(app, findRows(out.Data), opts.table.columns)
+		noteMissingColumns(app, rows, opts.table.columns)
+	}
+	count := ""
+	if total, ok := out.Meta["total_count"].(float64); ok && !(empty && total == 0) {
+		count = countLine(tool, out.Meta, int(total), opts)
 	}
 	switch {
 	case opts.format.delimited():
@@ -1059,28 +1084,47 @@ func printToolOutput(app *App, tool mcp.Tool, out toolOutput, opts renderOptions
 		}
 	case empty:
 		fmt.Fprintln(app.Out, noneFound(tool.Name))
+	case list && len(rows) > 0:
+		// The count goes under the table, above its footnotes.
+		return printList(app, out, rows, opts, count)
 	case out.Data != nil: // nil when only notes came back
 		if err := printHuman(app, out.Data, opts); err != nil {
 			return err
 		}
 	}
-	if total, ok := out.Meta["total_count"].(float64); ok && !(empty && total == 0) {
-		fmt.Fprintf(app.Err, "%d total", int(total))
-		if pages, ok := out.Meta["total_pages"].(float64); ok && pages > 1 {
-			page := ui.SafeLine(fmt.Sprint(out.Meta["page"]))
-			fmt.Fprintf(app.Err, " (page %s of %d", page, int(pages))
-			if opts.nextPage != nil {
-				next := "N"
-				if n, ok := out.Meta["page"].(float64); ok && n >= 1 && n < pages {
-					next = strconv.Itoa(int(n) + 1)
-				}
-				fmt.Fprintf(app.Err, "; use %s", opts.nextPage(next))
-			}
-			fmt.Fprint(app.Err, ")")
-		}
-		fmt.Fprintln(app.Err)
+	if count != "" {
+		fmt.Fprintln(app.Err, count)
 	}
 	return nil
+}
+
+// countLine says how many rows there are in all and, when there are more
+// pages, how to get the next: "37 vendors (page 1 of 2; use --page 2 or
+// --all)." A tool that lists nothing by its name has "42 total".
+func countLine(tool mcp.Tool, meta map[string]any, total int, opts renderOptions) string {
+	var b strings.Builder
+	noun, isList := listNoun(tool.Name, total)
+	if isList {
+		fmt.Fprintf(&b, "%d %s", total, noun)
+	} else {
+		fmt.Fprintf(&b, "%d total", total)
+	}
+	if pages, ok := meta["total_pages"].(float64); ok && pages > 1 {
+		page := ui.SafeLine(fmt.Sprint(meta["page"]))
+		fmt.Fprintf(&b, " (page %s of %d", page, int(pages))
+		if opts.nextPage != nil {
+			next := "N"
+			if n, ok := meta["page"].(float64); ok && n >= 1 && n < pages {
+				next = strconv.Itoa(int(n) + 1)
+			}
+			fmt.Fprintf(&b, "; use %s", opts.nextPage(next))
+		}
+		b.WriteString(")")
+	}
+	if isList {
+		b.WriteString(".")
+	}
+	return b.String()
 }
 
 // printDelimited prints the rows of an answer as CSV or TSV. An empty list
@@ -1216,10 +1260,10 @@ func nameInText(s string) string {
 }
 
 // noneFound is the human answer to an empty list: list_cost_centers finds
-// no cost centers.
+// no cost centres.
 func noneFound(tool string) string {
-	if what, ok := strings.CutPrefix(tool, "list_"); ok && what != "" {
-		return "No " + ui.SafeLine(strings.ReplaceAll(what, "_", " ")) + " found."
+	if what, ok := listNoun(tool, 0); ok {
+		return "No " + what + " found."
 	}
 	return "No results found."
 }
