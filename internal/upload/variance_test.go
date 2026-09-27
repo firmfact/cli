@@ -68,7 +68,9 @@ func mustThreshold(t *testing.T, s string) Threshold {
 // A threshold is exceeded only past it, either way from the contract: at
 // it is within. A percentage is of the contracted amount and exact, not
 // the server's percent rounded to a tenth. Less than a cent is rounding,
-// whatever the threshold.
+// whatever the threshold; lines that differ but add up to the contract
+// are within a threshold of an amount or a percentage, zero included, and
+// exceed one of no variance at all.
 func TestThresholdExceeded(t *testing.T) {
 	// 1,000.00 contracted: 20.00 is exactly 2%, 20.40 is 2.04%, which the
 	// server rounds to 2.0.
@@ -92,11 +94,16 @@ func TestThresholdExceeded(t *testing.T) {
 		{"any", preview("0.01", "0.0"), true},
 		{"any", preview("-0.01", "0.0"), true},
 		// Lines that differ but add up to the contract.
-		{"any", preview("0.00", "0.0"), false},
+		{"any", preview("0.00", "0.0"), true},
+		{"any", preview("0.004", ""), true},
 		{"0%", preview("0.00", "0.0"), false},
+		{"0", preview("0.00", "0.0"), false},
+		{"2%", preview("0.00", "0.0"), false},
 		{"0", preview("0.01", "0.0"), true},
-		// Past the cent the server rounds to: still rounding.
-		{"any", preview("0.004", ""), false},
+		// Past the cent the server rounds to, with no line said to
+		// differ: still rounding.
+		{"any", &Variance{Amount: "0.004", Contract: "1000.00"}, false},
+		{"any", &Variance{Status: "none", Amount: "0.00", Contract: "1000.00"}, false},
 		// No contracted amount: a percentage of nothing allows nothing,
 		// while an amount still counts.
 		{"200%", &Variance{Amount: "30.00", Contract: "0.00"}, true},
@@ -130,6 +137,24 @@ func TestMeasureNeedsAnAmount(t *testing.T) {
 	m, _ := (&Variance{Amount: "-14.20", Contract: "100.00"}).Measure()
 	if m.Amount.FloatString(2) != "-14.20" || m.Percent.FloatString(1) != "14.2" {
 		t.Errorf("measure = %s, %s%%", m.Amount.FloatString(2), m.Percent.FloatString(1))
+	}
+	// Lines that differ but add up to the contract offset each other;
+	// a variance of a cent, or rounding, does not.
+	for _, c := range []struct {
+		v    *Variance
+		want bool
+	}{
+		{&Variance{Status: "variance", Amount: "0.00", Contract: "100.00"}, true},
+		{&Variance{Status: "variance", Amount: "-0.004", Contract: "100.00"}, true},
+		{&Variance{Status: "variance", Amount: "0.01", Contract: "100.00"}, false},
+		{&Variance{Status: "none", Amount: "0.00", Contract: "100.00"}, false},
+	} {
+		if m, _ := c.v.Measure(); m.Offsets() != c.want {
+			t.Errorf("%s of %s (%s): offsets %v", c.v.Amount, c.v.Contract, c.v.Status, !c.want)
+		}
+	}
+	if (Measure{Differs: true}).Offsets() {
+		t.Error("a Measure without an amount offsets")
 	}
 }
 

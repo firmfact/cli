@@ -69,8 +69,10 @@ change with it, so they are not listed here.
   (`variance_exceeded`) when an invoice is further from its contract than
   the threshold allows, above or below it. The threshold is a percentage
   of the contracted amount (`--fail-on-variance=2%`) or an amount in the
-  invoice's currency (`--fail-on-variance=50`); without one, any variance
-  counts. With `--json`, `meta.variance_exceeded` lists those invoices.
+  invoice's currency (`--fail-on-variance=50`), and holds the net
+  difference; without one, any variance counts, lines that differ from the
+  contract but add up to it included. With `--json`,
+  `meta.variance_exceeded` lists those invoices.
   Documents that are not invoices, and invoices with no contract to
   compare them with, never trip it; a document whose variance cannot be
   checked, such as an invoice whose lines are not matched to its contract

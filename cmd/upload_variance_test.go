@@ -48,11 +48,13 @@ func uploadGated(t *testing.T, s *uploadServer, args ...string) (int, string) {
 // with status 9; one exactly at it passes. A percentage is of the
 // contracted amount and exact: 2.04% is over 2%, though the server rounds
 // it to 2.0. An amount is in the invoice's currency. Without a value, any
-// variance counts, and an invoice that matches its contract passes.
+// variance counts, lines that differ but add up to the contract included,
+// which a threshold lets through, and an invoice that matches its
+// contract passes.
 func TestFailOnVarianceThreshold(t *testing.T) {
 	isolate(t)
 	fastUploadPolls(t)
-	names := []string{"under.pdf", "at.pdf", "over.pdf", "LSEG-2026-09.pdf", "BBG-88123.pdf"}
+	names := []string{"under.pdf", "at.pdf", "over.pdf", "offset.pdf", "LSEG-2026-09.pdf", "BBG-88123.pdf"}
 	uploadDir(t, names...)
 	for _, c := range []struct {
 		name, file, threshold string
@@ -67,6 +69,10 @@ func TestFailOnVarianceThreshold(t *testing.T) {
 		{"over an amount", "LSEG-2026-09.pdf", "1549.99", ExitVariance, "1 invoice is over the variance threshold of 1549.99: LSEG-2026-09.pdf, EUR 1,550.00 (14.2%) above the contract"},
 		{"any variance", "LSEG-2026-09.pdf", "", ExitVariance, "1 invoice shows a variance: LSEG-2026-09.pdf, EUR 1,550.00 (14.2%) above the contract"},
 		{"none at all", "BBG-88123.pdf", "", 0, ""},
+		{"lines that offset, against any variance", "offset.pdf", "", ExitVariance,
+			"1 invoice shows a variance: offset.pdf, whose lines differ from its contract but add up to it"},
+		{"lines that offset, against a percentage", "offset.pdf", "2%", 0, ""},
+		{"lines that offset, against zero", "offset.pdf", "0", 0, ""},
 		{"a percentage above the invoice's", "LSEG-2026-09.pdf", "15%", 0, ""},
 		{"a percentage below the invoice's", "LSEG-2026-09.pdf", "14.22%", ExitVariance, "LSEG-2026-09.pdf, EUR 1,550.00 (14.2202%) above the contract"},
 	} {
@@ -75,6 +81,7 @@ func TestFailOnVarianceThreshold(t *testing.T) {
 			withInvoice(s, "under.pdf", underID, preview("19.99", "2.0"))
 			withInvoice(s, "at.pdf", atID, preview("20.00", "2.0"))
 			withInvoice(s, "over.pdf", overID, preview("20.40", "2.0"))
+			withInvoice(s, "offset.pdf", otherID, preview("0.00", "0.0"))
 			flag := "--fail-on-variance"
 			if c.threshold != "" {
 				flag += "=" + c.threshold

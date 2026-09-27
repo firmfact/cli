@@ -73,7 +73,8 @@ func varianceHelp(more string) string {
 	text := fmt.Sprintf("--fail-on-variance is for pipelines: once firmfact has read the documents, "+
 		"the command ends with exit status %[1]d when an invoice is further from its contract than the threshold allows, above or below it. "+
 		"The threshold is a percentage of the contracted amount (--fail-on-variance=2%%) or an amount in the invoice's currency (--fail-on-variance=50), "+
-		"and an invoice exactly at it passes; without one, any variance of a cent or more counts. "+
+		"and an invoice exactly at it passes. A threshold holds the net difference, so lines that differ from the contract but add up to it pass; "+
+		"without one, any variance counts, those lines included. "+
 		"Documents that are not invoices, and invoices with no contract to compare them with, never exceed it. "+
 		"A document whose variance cannot be checked, such as someone else's upload, an invoice whose contract you may not view, "+
 		"or one whose lines are not matched to its contract yet, "+
@@ -262,7 +263,12 @@ func listSome(items []string) string {
 // measureWords is how far an invoice is from its contract: "EUR 1,550.00
 // (14.2%) above the contract". Against a percentage, the percentage has as
 // many decimals as it takes to be over the threshold: 2.04%, not 2.0%.
+// Lines that offset each other, which only a threshold of no variance at
+// all counts, are said as such, as the next steps say them.
 func (g *varianceGate) measureWords(currency string, m upload.Measure) string {
+	if m.Offsets() {
+		return "whose lines differ from its contract but add up to it"
+	}
 	direction := " above the contract"
 	if m.Amount.Sign() < 0 {
 		direction = " below the contract"

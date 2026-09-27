@@ -513,22 +513,23 @@ firmfact has read it: the upload ends with exit status 9 when an invoice's
 variance preview is further from the contract than the threshold allows,
 above or below it. The threshold follows an `=`: a percentage of the
 contracted amount (`--fail-on-variance=2%`) or an amount in the invoice's
-currency (`--fail-on-variance=50`). An invoice exactly at it passes, and
-without a value, any variance of a cent or more counts. Documents that are
-not invoices, and invoices with no contract to compare them with, never
-exceed it. A document whose variance cannot be checked (someone else's
-upload, whose results only they see, or an invoice whose contract you may
-not view, whose lines are not matched to its contract yet, whose review
-page is not ready or whose preview firmfact could not work out) makes the
-exit status 1, as a document that could not be read does, and a wait that
-ran out makes it 5: so 9 means that everything else went well, and the
-error names the invoices over the threshold whatever the status. With
-`--json`, `meta.variance_exceeded` lists the files over it, by their
-`path`, and `meta.variance_unchecked` those whose variance could not be
-checked. The check needs what firmfact read, so it cannot go with
-`--no-wait`; `firmfact upload status <id>... --fail-on-variance` checks
-documents uploaded before, waiting for them as `--wait` does, and lists
-them by id.
+currency (`--fail-on-variance=50`). An invoice exactly at it passes. A
+threshold holds the net difference, so an invoice whose lines differ from
+the contract but add up to it passes; without a value, any variance counts,
+those lines included. Documents that are not invoices, and invoices with no
+contract to compare them with, never exceed it. A document whose variance
+cannot be checked (someone else's upload, whose results only they see, or
+an invoice whose contract you may not view, whose lines are not matched to
+its contract yet, whose review page is not ready or whose preview firmfact
+could not work out) makes the exit status 1, as a document that could not
+be read does, and a wait that ran out makes it 5: so 9 means that
+everything else went well, and the error names the invoices over the
+threshold whatever the status. With `--json`, `meta.variance_exceeded`
+lists the files over it, by their `path`, and `meta.variance_unchecked`
+those whose variance could not be checked. The check needs what firmfact
+read, so it cannot go with `--no-wait`;
+`firmfact upload status <id>... --fail-on-variance` checks documents
+uploaded before, waiting for them as `--wait` does, and lists them by id.
 
 ```bash
 status=0

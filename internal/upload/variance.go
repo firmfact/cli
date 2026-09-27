@@ -20,7 +20,8 @@ const AnyVariance = "any"
 
 // Threshold is how far an invoice may be from its contract, either way,
 // and still pass. The zero Threshold allows no variance: a difference of a
-// cent or more exceeds it.
+// cent or more exceeds it, and so do lines that differ from the contract
+// but add up to it.
 type Threshold struct {
 	// Percent is set for a percentage of the contracted amount; otherwise
 	// Limit is an amount in the invoice's currency.
@@ -92,6 +93,16 @@ type Measure struct {
 	// Percent is the size of Amount as a percentage of the contracted
 	// amount; nil when there is no contracted amount to take one of.
 	Percent *big.Rat
+	// Differs is set when the preview says the lines differ from the
+	// contract (status variance), which they may do and still add up to
+	// it: one line over, another as much under.
+	Differs bool
+}
+
+// Offsets reports whether m is lines that differ from the contract but add
+// up to it, to the cent.
+func (m Measure) Offsets() bool {
+	return m.Differs && m.Amount != nil && new(big.Rat).Abs(m.Amount).Cmp(cent) < 0
 }
 
 // Measure reads how far the invoice is from its contract; ok is false when
@@ -106,6 +117,7 @@ func (v *Variance) Measure() (m Measure, ok bool) {
 		return Measure{}, false
 	}
 	m.Amount = amount
+	m.Differs = v.Status == "variance"
 	size := new(big.Rat).Abs(amount)
 	if contract, ok := v.Contract.Rat(); ok && contract.Sign() > 0 {
 		m.Percent = size.Quo(size, contract)
@@ -117,9 +129,12 @@ func (v *Variance) Measure() (m Measure, ok bool) {
 }
 
 // Exceeded reports whether m is further from the contract than t allows,
-// either way. A difference below a cent is rounding, whatever t says. With
-// a percentage and no contracted amount to take it of, any difference
-// exceeds it: a percentage of nothing allows nothing.
+// either way. An amount or a percentage holds the net difference, below a
+// cent of which is rounding, so lines that differ but add up to the
+// contract are within it; a threshold of no variance at all (given no
+// value) counts those lines as a variance too, as a person reading "any
+// variance" would. With a percentage and no contracted amount to take it
+// of, any difference exceeds it: a percentage of nothing allows nothing.
 func (t Threshold) Exceeded(m Measure) bool {
 	if m.Amount == nil {
 		return false
@@ -127,7 +142,7 @@ func (t Threshold) Exceeded(m Measure) bool {
 	size := new(big.Rat).Abs(m.Amount)
 	switch {
 	case size.Cmp(cent) < 0:
-		return false
+		return t.Limit == nil && m.Differs
 	case t.Limit == nil:
 		return true
 	case !t.Percent:
