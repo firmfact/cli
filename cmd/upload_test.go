@@ -702,7 +702,7 @@ func TestUploadNoWait(t *testing.T) {
 	}
 	for _, want := range []string{
 		"LSEG-2026-09.pdf: waiting to be read\n",
-		"Firmfact reads them meanwhile; see what it read with `firmfact upload status --workspace " + acmeID + " 423a2262-85dd-4cf1-9b51-60c7bbf2ff7d`.\n",
+		"Firmfact reads it meanwhile; see what it read with `firmfact upload status --workspace " + acmeID + " 423a2262-85dd-4cf1-9b51-60c7bbf2ff7d`.\n",
 	} {
 		if !strings.Contains(stdout, want) {
 			t.Errorf("missing %q in\n%s", want, stdout)
@@ -712,6 +712,43 @@ func TestUploadNoWait(t *testing.T) {
 		if strings.Contains(req, "view=state") || strings.HasPrefix(req, "GET") {
 			t.Errorf("read back after --no-wait: %s", req)
 		}
+	}
+
+	s = newUploadServer(t)
+	uploadDir(t, "LSEG-2026-09.pdf", "BBG-88123.pdf")
+	stdout, _, err = run("test", "--host", s.URL(), "--workspace", "Acme", "upload", "LSEG-2026-09.pdf", "BBG-88123.pdf", "--no-wait")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want := "Firmfact reads them meanwhile; see what it read with `firmfact upload status --workspace " + acmeID + " "; !strings.Contains(stdout, want) {
+		t.Errorf("missing %q in\n%s", want, stdout)
+	}
+}
+
+// In a batch's table, a file refused on its way is named once: the
+// server's sentence starts with its name.
+func TestUploadTableNamesARefusedFileOnce(t *testing.T) {
+	isolate(t)
+	fastUploadPolls(t)
+	s := newUploadServer(t)
+	uploadDir(t, "2026-09/BBG-88123.pdf", "2026-09/BBG-Anywhere-2026.pdf", "2026-09/FactSet-Q3.pdf",
+		"2026-09/LSEG-2026-09.pdf", "2026-09/broken.docx")
+	const refusal = "broken.docx: the contents do not match the .docx extension, so it was not stored. Check that the file has the right extension."
+	s.uploadHook = func(_ int, w http.ResponseWriter, r *http.Request) bool {
+		if err := r.ParseMultipartForm(1 << 20); err != nil || r.MultipartForm.File["files[]"][0].Filename != "broken.docx" {
+			// The form is read now; accept reads it from there.
+			return false
+		}
+		answerJSON(w, http.StatusUnprocessableEntity, encode(map[string]any{"error": refusal, "code": "FILE_REFUSED",
+			"details": map[string]any{"results": []map[string]any{{"index": 0, "filename": "broken.docx", "outcome": "type_mismatch", "message": refusal}}}}))
+		return true
+	}
+	stdout, _, err := run("test", "--host", s.URL(), "--workspace", "Acme", "upload", "2026-09", "--recursive")
+	if code, _ := Classify(err); code != ExitFailed {
+		t.Errorf("exit %d: %v", code, err)
+	}
+	if !strings.Contains(stdout, "\n  "+refusal+"\n") || strings.Contains(stdout, "broken.docx: broken.docx") {
+		t.Errorf("stdout = %s", stdout)
 	}
 }
 

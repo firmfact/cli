@@ -230,7 +230,7 @@ func (r *uploadRun) printResults() {
 	} else {
 		printDocumentTable(w, docs)
 		for _, f := range problems {
-			fmt.Fprintf(w, "  %s: %s\n", f.label(), problemText(f))
+			fmt.Fprintf(w, "  %s\n", problemLine(f))
 		}
 	}
 	// A line about the whole batch stands apart from the blocks above it.
@@ -252,8 +252,8 @@ func (r *uploadRun) printResults() {
 	if waitingForReview(r.documents()) {
 		fmt.Fprintln(w, nothingBooked)
 	}
-	if r.flags.noWait && len(inProgress(r.documents())) > 0 {
-		fmt.Fprintf(w, "Firmfact reads them meanwhile; see what it read with `%s`.\n", r.statusCommand(ids))
+	if n := len(inProgress(r.documents())); r.flags.noWait && n > 0 {
+		fmt.Fprintf(w, "Firmfact reads %s meanwhile; see what it read with `%s`.\n", plural(n, "it", "them"), r.statusCommand(ids))
 	}
 }
 
@@ -281,6 +281,17 @@ func problemText(f *uploadFile) string {
 		return ui.SafeLine(f.message)
 	}
 	return "refused (" + ui.SafeLine(orDefault(f.code, "no reason given")) + ")"
+}
+
+// problemLine is f and why it was not stored, on one line. The server's
+// sentences start with the file's name, which is then not said twice, as
+// in the plan (printRefusals).
+func problemLine(f *uploadFile) string {
+	text := problemText(f)
+	if strings.HasPrefix(text, f.label()) {
+		return text
+	}
+	return f.label() + ": " + text
 }
 
 // documentsPage is the web page that lists a workspace's documents, where
