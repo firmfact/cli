@@ -417,20 +417,25 @@ moved month by month. A batch gets them for its first invoice with a
 variance, and a count of the others. Scripts and `--json` get none.
 
 A spreadsheet or an HR file has a line for each type of record in it: how
-many rows of that type firmfact read, and how many of them publishing would
-add, change (with the fields that differ, the most frequent first), leave
-as they are, or leave for a person to match. Rows set aside on the review
-page, rows that match records you cannot view, and rows past those the
-review page shows (which publishing imports as they are) are counted too,
-when there are any, and so are the people in the workspace whom an HR file
-no longer lists. The type names are in your language, as firmfact shows
-them.
+many rows of that type firmfact read, how many of them publishing would
+add, change (with the fields that differ, the most frequent first) or leave
+as they are, and how many are unmatched: rows that resemble a record
+already in the workspace, for a person to match on the review page.
+Publishing does not wait for that, and may add them as new records,
+possible duplicates, so a block with unmatched rows says so. Rows set aside
+on the review page, rows that match records you cannot view, and rows past
+those the review page shows (which publishing imports as they are) are
+counted too, when there are any, and so are the people in the workspace
+whom an HR file no longer lists. The type names are in your language, as
+firmfact shows them.
 
 ```text
 HR-2026-09.xlsx: HR file, ready for review
   Departments    12 read: 1 new, 1 with changes (Parent unit), 10 unchanged
   Cost centres    8 read: 8 unchanged
   People        250 read: 230 new, 15 with changes (Department, Cost centre), 5 unmatched; 3 no longer in the file
+  Unmatched   Publishing may add unmatched rows as new records, possible
+              duplicates, unless someone matches them first.
   To review   An item (Jane Smith): choose which changes to apply.
               An item (Robret Brown): confirm the suggested match or choose another.
               and 6 more on the review page

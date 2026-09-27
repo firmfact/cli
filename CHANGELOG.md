@@ -47,8 +47,9 @@ change with it, so they are not listed here.
   contract an invoice matches, a preview of how it compares with that
   contract, and what the review page asks. For a spreadsheet or an HR
   file, a line for each type of record says how many rows publishing
-  would add, change (and in which fields), leave as they are, or leave for
-  a person to match. Nothing is booked until someone publishes it there.
+  would add, change (and in which fields) or leave as they are, and how
+  many a person should match first, as publishing may add those as new
+  records. Nothing is booked until someone publishes it there.
   Files already in the workspace are not sent again;
   `--related` sends files as one group, counted once; an upload to the
   Demo workspace that nobody named asks first, or needs `--yes`. A file of

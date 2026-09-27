@@ -6,6 +6,8 @@ HR-2026-09.xlsx: HR file, ready for review
   Departments    12 read: 1 new, 1 with changes (Parent unit), 10 unchanged
   Cost centres    8 read: 8 unchanged
   People        250 read: 230 new, 15 with changes (Department, Cost centre), 5 unmatched; 3 no longer in the file
+  Unmatched   Publishing may add unmatched rows as new records, possible
+              duplicates, unless someone matches them first.
   To review   An item (Jane Smith): choose which changes to apply.
               An item (Robret Brown): confirm the suggested match or choose another.
               and 6 more on the review page
@@ -17,6 +19,8 @@ market-data-inventory.xlsx: spreadsheet, ready for review
   Products        1,180 read: 40 new, 12 with changes (Unit price, Currency, Billing frequency, Name, Description), 20 unchanged, 8 unmatched, 1,100 not on the review page
   Contracts           9 read: 1 with changes (End date), 6 unchanged, 2 matched to records you cannot view
   Contract items     64 read: 30 new, 30 unchanged, 4 skipped
+  Unmatched   Publishing may add unmatched rows as new records, possible
+              duplicates, unless someone matches them first.
   To review   An item (Eikon Messenger): confirm the suggested match or choose another.
               and 7 more on the review page
   Review      https://app.firmfact.example/accounts/1977ef5a-480b-4ea7-94ce-ce9fe4f308fd/documents/9f4d0e2a-3b5c-4d7e-8f90-1a2b3c4d5e60

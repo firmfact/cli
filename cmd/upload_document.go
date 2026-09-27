@@ -102,7 +102,7 @@ func printDocument(w io.Writer, name string, doc *upload.Document, duplicate boo
 		if label, text := readLine(doc.Type, rd); text != "" {
 			b.line(label, text)
 		}
-		printRecords(w, rd.Records)
+		printRecords(b, rd.Records, width)
 	}
 	printContractMatch(b, doc)
 	printVariance(b, w, doc.Variance)
@@ -257,6 +257,11 @@ func readLine(docType string, rd *upload.Read) (label, text string) {
 //
 // A count that is zero is left out. The labels come from the server, in the
 // member's language, so they are printed as they came, escaped.
+//
+// Unmatched rows resemble a record already in the workspace (or can be
+// neither matched nor added), and a person should look at them first. But
+// publishing does not wait for that: it adds them as new records unless
+// someone matches them on the review page, so a block with any says so.
 
 // maxRecordLabel is the most columns a type's label takes; a longer one is
 // cut, so that one label cannot push every line across the terminal. The
@@ -268,22 +273,38 @@ const maxRecordLabel = 24
 // the server sends; should it send more, the line says how many more.
 const maxChangedFields = 5
 
+// unmatchedNote is what a block with unmatched rows says of them. The
+// server maps a row a record was selected for, so publishing "may" add
+// them: the CLI cannot tell which ones.
+const unmatchedNote = "Publishing may add unmatched rows as new records, possible duplicates, " +
+	"unless someone matches them first."
+
 // printRecords writes a line for each type of record: its label, the
-// rows of that type the file holds, and what publishing does with them.
-// The labels line up with the rest of the block's while they fit its
-// column, and the totals line up with each other.
-func printRecords(w io.Writer, records []upload.RecordCounts) {
+// rows of that type the file holds, and what publishing does with them;
+// then, when any are unmatched, what publishing may do with those, wrapped
+// to width. The labels line up with the rest of the block's while they fit
+// its column, and the totals line up with each other.
+func printRecords(b blockWriter, records []upload.RecordCounts, width int) {
 	labels := make([]string, len(records))
 	totals := make([]string, len(records))
 	labelCols, totalCols := labelWidth, 0
+	unmatched := false
 	for i := range records {
 		labels[i] = cutCell(recordLabel(&records[i]), maxRecordLabel)
 		totals[i] = countText(records[i].Total)
 		labelCols = max(labelCols, ui.Columns(labels[i]))
 		totalCols = max(totalCols, ui.Columns(totals[i]))
+		unmatched = unmatched || records[i].Unmatched > 0
 	}
 	for i := range records {
-		fmt.Fprintf(w, "  %-*s  %*s read%s\n", labelCols, labels[i], totalCols, totals[i], recordCounts(&records[i]))
+		fmt.Fprintf(b.w, "  %-*s  %*s read%s\n", labelCols, labels[i], totalCols, totals[i], recordCounts(&records[i]))
+	}
+	if unmatched {
+		// The text starts after the indent, the label and the gap; on a
+		// terminal too narrow for that, a word a line would read worse
+		// than a line that wraps.
+		lines := wrapText(unmatchedNote, max(width-labelWidth-4, 20))
+		b.line("Unmatched", lines[0], lines[1:]...)
 	}
 }
 

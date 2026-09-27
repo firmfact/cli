@@ -76,6 +76,43 @@ func TestRecordLines(t *testing.T) {
 	}
 }
 
+// Publishing adds a spreadsheet's unmatched rows as new records unless a
+// person matches them first (docs/cli_document_upload.md on the service),
+// so a block with any says so, once, under the last type and wrapped to
+// the terminal; one without says nothing of it.
+func TestUnmatchedRowsSayWhatPublishingDoes(t *testing.T) {
+	doc := func(records ...upload.RecordCounts) *upload.Document {
+		return &upload.Document{State: upload.StateReadyForReview, Type: "spreadsheet", Read: &upload.Read{Type: "spreadsheet", Records: records}}
+	}
+	people := upload.RecordCounts{Type: "person", Label: "People", Total: 4, New: 3, Unmatched: 1}
+	vendors := upload.RecordCounts{Type: "vendor", Label: "Vendors", Total: 2, Unmatched: 2}
+	for _, width := range []int{72, 40, 20} {
+		var buf bytes.Buffer
+		printDocument(&buf, "sheet.xlsx", doc(people, vendors), false, width)
+		lines := strings.Split(strings.TrimSuffix(buf.String(), "\n"), "\n")
+		if len(lines) < 4 || !strings.HasPrefix(lines[3], "  Unmatched   Publishing may") {
+			t.Fatalf("width %d: no note under the types:\n%s", width, buf.String())
+		}
+		var words []string
+		for _, line := range lines[3:] {
+			// Never narrower than 20 columns of text.
+			if n := ui.Columns(line); n > max(width, 14+20) {
+				t.Errorf("width %d: a line of %d: %q", width, n, line)
+			}
+			words = append(words, strings.Fields(line)...)
+		}
+		if got := strings.Join(words[1:], " "); got != unmatchedNote {
+			t.Errorf("width %d: the note reads %q", width, got)
+		}
+	}
+	people.Unmatched, vendors.Unmatched = 0, 0
+	var buf bytes.Buffer
+	printDocument(&buf, "sheet.xlsx", doc(people, vendors), false, 72)
+	if strings.Contains(buf.String(), "Unmatched") {
+		t.Errorf("a sheet without unmatched rows:\n%s", buf.String())
+	}
+}
+
 // The table says the same of each shape in a few words.
 func TestDocumentTable(t *testing.T) {
 	var files []*uploadFile

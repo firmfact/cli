@@ -17,6 +17,8 @@ labels.xlsx: spreadsheet, ready for review
   Componentes de contrato  1 read: 1 unchanged
   Future thing             1 read: 1 new
   Records                  1 read: 1 unmatched
+  Unmatched   Publishing may add unmatched rows as new records, possible
+              duplicates, unless someone matches them first.
   Review      https://app.firmfact.example/accounts/1977ef5a-480b-4ea7-94ce-ce9fe4f308fd/documents/b2c3d4e5-0000-4000-8000-000000000003
 
 hostile.xlsx: spreadsheet, ready for review
@@ -24,4 +26,6 @@ hostile.xlsx: spreadsheet, ready for review
   Vendor\u001b[1A           2 read: 2 new
   Products  error: forged…  1 read: 1 unchanged
   Other\u200b records\u20…  1 read: 1 unmatched
+  Unmatched   Publishing may add unmatched rows as new records, possible
+              duplicates, unless someone matches them first.
   Review      https://app.firmfact.example/accounts/1977ef5a-480b-4ea7-94ce-ce9fe4f308fd/documents/b2c3d4e5-0000-4000-8000-000000000004
