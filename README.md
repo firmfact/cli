@@ -460,6 +460,37 @@ firmfact upload ~/Invoices/2026-09 -r --workspace Acme --jq '.data.results[] | [
 firmfact upload HR-2026-09.xlsx --workspace Acme --jq '.data.results[].document.read.records[]? | [.type, .total, .new, .changed] | @tsv'
 ```
 
+In a pipeline, `--fail-on-variance` holds each invoice to its contract
+once firmfact has read it: the upload ends with exit status 9 when an
+invoice's variance preview is further from the contract than the threshold
+allows, above or below it. The threshold follows an `=`: a percentage of
+the contracted amount (`--fail-on-variance=2%`) or an amount in the
+invoice's currency (`--fail-on-variance=50`). An invoice exactly at it
+passes, and without a value, any variance of a cent or more counts.
+Documents that are not invoices, and invoices firmfact did not match to a
+contract, never exceed it. A document whose variance cannot be checked
+(someone else's upload, whose results only they see, or an invoice whose
+contract you may not view or whose preview firmfact could not work out)
+makes the exit status 1, as a document that could not be read does, and a
+wait that ran out makes it 5: so 9 means that everything else went well,
+and the error names the invoices over the threshold whatever the status.
+With `--json`, `meta.variance_exceeded` lists the files over it, by their
+`path`, and `meta.variance_unchecked` those whose variance could not be
+checked. The check needs what firmfact read, so it cannot go with
+`--no-wait`; `firmfact upload status <id>... --fail-on-variance` checks
+documents uploaded before, waiting for them as `--wait` does, and lists
+them by id.
+
+```bash
+status=0
+firmfact upload "$INVOICES" -r --workspace Acme --fail-on-variance=2% --jq '.meta.variance_exceeded[]' > over.txt || status=$?
+case $status in
+  0) echo "Every invoice is within 2% of its contract." ;;
+  9) echo "More than 2% from the contract, to review before they are booked:"; cat over.txt; exit 1 ;;
+  *) exit "$status" ;;
+esac
+```
+
 The exit status says how it went: 0 when every file was uploaded or was
 already there, and was read (with `--no-wait`, sent); 1 when a file was
 refused, or a document could not be read or was skipped for the allowance;
@@ -467,9 +498,11 @@ refused, or a document could not be read or was skipped for the allowance;
 files to upload, or an unnamed Demo workspace off a terminal; 3 when not
 signed in; 4 when the workspace does not exist; 5 when the wait ran out, or
 firmfact was busy or rate-limited, which a later run picks up; 6 when the
-host does not offer uploads yet. When files ended in more than one of these
-ways, 1 wins over 5. With `--json`, the results are printed whatever the
-exit status once anything was sent, Ctrl-C included.
+host does not offer uploads yet; 9 when `--fail-on-variance` finds an
+invoice over its threshold. When files ended in more than one of these
+ways, 1 wins over 5, and any of them over 9. With `--json`, the results
+are printed whatever the exit status once anything was sent, Ctrl-C
+included.
 
 ### Exit codes
 
@@ -486,7 +519,10 @@ is down:
 | 4 | `not_found` | no such workspace, profile, tool or record, or no such release for `update --version` |
 | 5 | `unavailable` | rate-limited, the service failing, or no answer at all, or a wait for a workspace's setup or for uploaded documents to be read that ran out of time; worth retrying later |
 | 6 | `unsupported` | the host cannot serve this CLI: an older firmfact, another service, or a CLI below the host's minimum version |
+| 9 | `variance_exceeded` | not a failure but a finding, for pipelines: `upload` or `upload status` with `--fail-on-variance` read every document, and an invoice's variance preview is over the threshold (see [Uploading documents](#uploading-documents)) |
 | 130 | `interrupted` | Ctrl-C or SIGTERM |
+
+Statuses 7 and 8 are reserved for kinds of failure that are 1 for now.
 
 Without `--json`, an error is one line on stderr starting with `error:`. With
 `--json`, it is one line of JSON on stderr instead, with the exit status as

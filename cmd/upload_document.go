@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"io"
 	"math/big"
-	"regexp"
 	"strconv"
 	"strings"
 	"text/tabwriter"
@@ -648,7 +647,7 @@ func moneyText(currency string, amount upload.Decimal) string {
 func signedText(amount upload.Decimal) string { return decimalText(amount, true) }
 
 func decimalText(amount upload.Decimal, signed bool) string {
-	v, ok := decimal(amount)
+	v, ok := amount.Rat()
 	if !ok {
 		return ui.SafeLine(string(amount))
 	}
@@ -659,24 +658,10 @@ func decimalText(amount upload.Decimal, signed bool) string {
 	return text
 }
 
-// plainDecimal is a decimal as the server writes one: digits, perhaps a
-// sign and a fraction, and no exponent. big.Rat would take "1e999999999"
-// too, and work out every digit of it.
-var plainDecimal = regexp.MustCompile(`^[-+]?[0-9]{1,30}(\.[0-9]{1,30})?$`)
-
-// decimal reads d exactly, when it is a plain decimal.
-func decimal(d upload.Decimal) (*big.Rat, bool) {
-	s := strings.TrimSpace(string(d))
-	if !plainDecimal.MatchString(s) {
-		return nil, false
-	}
-	return new(big.Rat).SetString(s)
-}
-
 // percentText is a score between 0 and 1 as a whole percentage: 0.85 is
 // 85%.
 func percentText(score upload.Decimal) string {
-	v, ok := decimal(score)
+	v, ok := score.Rat()
 	if !ok {
 		return ""
 	}

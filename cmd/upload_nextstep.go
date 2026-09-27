@@ -52,7 +52,7 @@ func (r *uploadRun) printVarianceSteps() {
 // is in the member's language, and one kind of it is a sentence of its
 // own, where the heading wants a few words.
 func varianceWords(v *upload.Variance) string {
-	amount, ok := decimal(v.Amount)
+	amount, ok := v.Amount.Rat()
 	if !ok {
 		return "which differs from its contract"
 	}
@@ -64,7 +64,7 @@ func varianceWords(v *upload.Variance) string {
 		direction = " below the contract"
 	}
 	text := moneyText(v.Currency, upload.Decimal(amount.Abs(amount).FloatString(2)))
-	if percent, ok := decimal(v.Percent); ok {
+	if percent, ok := v.Percent.Rat(); ok {
 		text += " (" + percent.Abs(percent).FloatString(1) + "%)"
 	}
 	return text + direction
@@ -173,7 +173,7 @@ func largestVarianceLine(lines []upload.VarianceLine) *upload.VarianceLine {
 		if l.Item == nil || strings.TrimSpace(l.Item.Name) == "" {
 			continue
 		}
-		amount, ok := decimal(l.Amount)
+		amount, ok := l.Amount.Rat()
 		if !ok {
 			amount = new(big.Rat)
 		}

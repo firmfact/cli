@@ -431,6 +431,13 @@ type uploadJSONData struct {
 
 type uploadJSONMeta struct {
 	Schema string `json:"schema"`
+	// VarianceExceeded and VarianceUnchecked are there with
+	// --fail-on-variance only, empty lists when there are none: the
+	// invoices over the threshold and the documents whose variance could
+	// not be checked, by what the command line named (a file's path for
+	// upload, a document's id for upload status).
+	VarianceExceeded  *[]string `json:"variance_exceeded,omitempty"`
+	VarianceUnchecked *[]string `json:"variance_unchecked,omitempty"`
 }
 
 type uploadJSONFile struct {
@@ -476,6 +483,7 @@ func (r *uploadRun) json() uploadJSON {
 	}
 	summary["states"] = states
 	out.Data.Summary = summary
+	r.varianceGate().setMeta(&out.Meta)
 	if r.demo {
 		out.Notes = append(out.Notes, r.demoNote())
 	}
@@ -532,11 +540,35 @@ func (r *uploadRun) stoppedFiles() int {
 }
 
 // result is the error the upload ends with, whose exit status says how it
-// went: 1 when a file was refused or could not be read, 5 when one could
-// not be sent now or was still being read when the wait ran out, and the
-// error's own status when the sign-in or the workspace stopped the upload.
-// A refusal needs a person, so it wins over a wait that ran out.
+// went: see failure, and with --fail-on-variance, varianceGate.result.
 func (r *uploadRun) result() error {
+	return r.varianceGate().result(r.failure())
+}
+
+// varianceGate is --fail-on-variance's verdict on the upload's documents,
+// each once, under the first file that named it; nil without the flag.
+func (r *uploadRun) varianceGate() *varianceGate {
+	if !r.flags.failOnVariance.on {
+		return nil
+	}
+	var subjects []varianceSubject
+	seen := map[string]bool{}
+	for _, f := range r.files {
+		if f.doc == nil || seen[f.doc.ID] {
+			continue
+		}
+		seen[f.doc.ID] = true
+		subjects = append(subjects, varianceSubject{name: f.label(), key: f.src.Path, doc: f.doc})
+	}
+	return gateVariance(r.flags.failOnVariance.threshold, subjects)
+}
+
+// failure is the error the upload ends with apart from --fail-on-variance:
+// 1 when a file was refused or could not be read, 5 when one could not be
+// sent now or was still being read when the wait ran out, and the error's
+// own status when the sign-in or the workspace stopped the upload. A
+// refusal needs a person, so it wins over a wait that ran out.
+func (r *uploadRun) failure() error {
 	if r.stop != nil && r.stop.err != nil {
 		return r.stop.err
 	}

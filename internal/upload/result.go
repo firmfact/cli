@@ -4,6 +4,9 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"math/big"
+	"regexp"
+	"strings"
 )
 
 // Schema is the version of the result entries this CLI reads, which the
@@ -347,6 +350,20 @@ func (d *Decimal) UnmarshalJSON(b []byte) error {
 	}
 	*d = Decimal(n)
 	return nil
+}
+
+// plainDecimal is a decimal as the server writes one: digits, perhaps a
+// sign and a fraction, and no exponent. big.Rat would take "1e999999999"
+// too, and work out every digit of it.
+var plainDecimal = regexp.MustCompile(`^[-+]?[0-9]{1,30}(\.[0-9]{1,30})?$`)
+
+// Rat is d as an exact number, when it is a plain decimal.
+func (d Decimal) Rat() (*big.Rat, bool) {
+	s := strings.TrimSpace(string(d))
+	if !plainDecimal.MatchString(s) {
+		return nil, false
+	}
+	return new(big.Rat).SetString(s)
 }
 
 // keepRaw decodes b into v, and keeps a copy of b in raw.

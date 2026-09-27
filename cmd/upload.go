@@ -45,6 +45,8 @@ type uploadFlags struct {
 	noWait      bool
 	waitTimeout time.Duration
 	yes         bool
+	// failOnVariance is --fail-on-variance, for pipelines.
+	failOnVariance varianceFlag
 }
 
 // defaultUploadWait is how long an upload waits for firmfact to read what
@@ -92,6 +94,8 @@ when neither --workspace nor FIRMFACT_WORKSPACE names the workspace and the
 upload would go to Demo, the CLI asks first; off a terminal, where there is
 no one to ask, it needs --yes, and exits with status 2 without it.
 
+` + varianceHelp("It cannot go with --no-wait.") + `
+
 Exit status: 0 when every file was uploaded or was already there, and was
 read (or, with --no-wait, sent); 1 when a file was refused or could not be
 read; 2 for a mistake on the command line, such as a pattern or folders
@@ -99,12 +103,13 @@ with no files to upload, or an unnamed Demo workspace off a terminal; 3
 when not signed in; 4 when the workspace does not exist; 5 when the wait
 ran out, or firmfact was busy or rate-limited (run the command again:
 files already there are skipped); 6 when the host does not offer uploads
-yet. A file called status is ./status, as upload status is the command
-below.`,
+yet; 9 when --fail-on-variance finds an invoice over its threshold. A
+file called status is ./status, as upload status is the command below.`,
 		Example: fmt.Sprintf(`  %[1]s upload LSEG-2026-09.pdf --workspace Acme
   %[1]s upload ~/Invoices/2026-09 --recursive --workspace Acme
   %[1]s upload invoice.pdf usage-report.xlsx --related
   %[1]s upload '*.pdf' --no-wait --json
+  %[1]s upload ~/Invoices/2026-09 -r --workspace Acme --fail-on-variance=2%%
   scanimage --format=pdf | %[1]s upload - --name scan-0034.pdf --workspace Acme`, app.Name),
 		Args: cobra.ArbitraryArgs,
 		// Files, folders and patterns: the shell's own completion.
@@ -125,6 +130,7 @@ below.`,
 	cmd.Flags().BoolVar(&f.noWait, "no-wait", false, "do not wait for firmfact to read the documents")
 	cmd.Flags().DurationVar(&f.waitTimeout, "wait-timeout", defaultUploadWait, "how long to wait for firmfact to read the documents")
 	cmd.Flags().BoolVarP(&f.yes, "yes", "y", false, "upload to the Demo workspace without asking, when no workspace is named")
+	addVarianceFlag(cmd, &f.failOnVariance)
 	_ = cmd.RegisterFlagCompletionFunc("name", cobra.NoFileCompletions)
 	_ = cmd.RegisterFlagCompletionFunc("wait-timeout", completeWaitTimeout)
 	cmd.AddCommand(newUploadStatusCommand(app))
@@ -157,6 +163,8 @@ func (f uploadFlags) check(args []string) error {
 		return usageErrorf("--name names the file read from standard input; add - to read one, or leave --name out")
 	case f.waitTimeout <= 0:
 		return usageErrorf("--wait-timeout must be more than 0; use --no-wait not to wait")
+	case f.failOnVariance.on && f.noWait:
+		return usageErrorf("--fail-on-variance needs what firmfact read from the invoices, which --no-wait does not wait for; leave one of them out")
 	}
 	return nil
 }
@@ -165,7 +173,7 @@ func (f uploadFlags) check(args []string) error {
 func runUpload(ctx context.Context, app *App, f uploadFlags, args []string) error {
 	found, err := upload.Expand(args, f.recursive)
 	if err != nil {
-		return expandError(app, err)
+		return expandError(app, f, err)
 	}
 	c, err := app.Client()
 	if err != nil {
@@ -204,7 +212,7 @@ func runUpload(ctx context.Context, app *App, f uploadFlags, args []string) erro
 
 // expandError says what is wrong with the files an upload names; each is
 // the command line's mistake, as nothing has been read or sent.
-func expandError(app *App, err error) error {
+func expandError(app *App, f uploadFlags, err error) error {
 	var (
 		folder *upload.FolderError
 		none   *upload.NoMatchError
@@ -221,7 +229,7 @@ func expandError(app *App, err error) error {
 			// of that name, but status itself never is.
 			return usageErrorf("no such file: %s; for the status of your uploads, run `%s upload status`", ui.SafeLine(path.Path), app.Name)
 		}
-		return usageErrorf("no such file: %s", ui.SafeLine(path.Path))
+		return usageErrorf("no such file: %s%s", ui.SafeLine(path.Path), f.failOnVariance.thresholdHint(path.Path))
 	}
 	return err
 }

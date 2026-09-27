@@ -61,6 +61,16 @@ change with it, so they are not listed here.
   commands that follow it up: `open` with its review link,
   `contract-items list` for the contract item of the line that differs
   most, and `analyze cost-trends` for the vendor's costs month by month.
+- `--fail-on-variance` on `upload` and `upload status`, for pipelines: once
+  firmfact has read the documents, the command exits with status 9
+  (`variance_exceeded`) when an invoice is further from its contract than
+  the threshold allows, above or below it. The threshold is a percentage
+  of the contracted amount (`--fail-on-variance=2%`) or an amount in the
+  invoice's currency (`--fail-on-variance=50`); without one, any variance
+  counts. With `--json`, `meta.variance_exceeded` lists those invoices.
+  Documents that are not invoices, and invoices without a contract match,
+  never trip it; a document whose variance cannot be checked makes the
+  exit status 1, and is listed in `meta.variance_unchecked`.
 - A command that writes to a workspace says so in its help, and one that may
   delete or overwrite data asks first, or takes `--yes`.
 - Output for people and for scripts: tables that fit the terminal,

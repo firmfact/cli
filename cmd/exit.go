@@ -41,6 +41,16 @@ const (
 	// ExitUnsupported is a host that cannot serve this CLI: it is too old,
 	// not firmfact, or needs a newer version of the CLI.
 	ExitUnsupported = 6
+	// 7 and 8 are kept for a request the sign-in is not allowed to make
+	// and for a conflict with a change made meanwhile, which are 1 until
+	// the CLI tells them apart.
+
+	// ExitVariance is not a failure of the command but a finding, for
+	// pipelines: an upload, or upload status, with --fail-on-variance
+	// whose documents were all read, and an invoice's variance preview is
+	// over the threshold. Anything else that went wrong has its own
+	// status, which wins, as that run has not checked everything.
+	ExitVariance = 9
 	// ExitInterrupted is Ctrl-C or SIGTERM: 128 + SIGINT, what a shell
 	// reports for a command that Ctrl-C ended.
 	ExitInterrupted = 130
@@ -55,6 +65,7 @@ var exitStatus = map[int]string{
 	ExitNotFound:    "not_found",
 	ExitUnavailable: "unavailable",
 	ExitUnsupported: "unsupported",
+	ExitVariance:    "variance_exceeded",
 	ExitInterrupted: "interrupted",
 }
 
