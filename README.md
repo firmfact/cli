@@ -171,6 +171,7 @@ does not.
 | `vendors list`, `contracts list`, … | Look things up in a workspace |
 | `analyze cost-trends`, `analyze allocations`, `analyze utilization` | Analyse spend, allocations and utilisation |
 | `ask "question"` | Ask a question in plain English; `--continue` follows up in the same thread |
+| `upload <files>` / `upload status` | Upload invoices, contracts and other documents for firmfact to read, and see what it read (see [Uploading documents](#uploading-documents)) |
 | `chat-with-workspace` | The same, as a workspace command with `--message` and `--thread-id`; kept for scripts that use it |
 | `call <tool>` | Call any workspace tool by name |
 | `open` | Open firmfact in your browser, on the host you use |
@@ -331,6 +332,101 @@ firmfact contract-items list --all --jq '[.name, .monthly_cost] | @tsv'
 firmfact doctor --jq '.checks[] | select(.ok | not) | .detail'
 ```
 
+### Uploading documents
+
+`firmfact upload` sends invoices, contracts, order forms and other documents
+to a workspace for firmfact to read, as the upload page in the web app
+does, and shows what it read: the vendor, the amounts, the contract an
+invoice matches, a preview of how it compares with that contract, and what
+needs a person on the document's review page. Nothing is booked until
+someone publishes the document there.
+
+```bash
+firmfact upload LSEG-2026-09.pdf --workspace Acme
+firmfact upload ~/Invoices/2026-09 --recursive --workspace Acme
+firmfact upload invoice.pdf usage-report.xlsx --related --workspace Acme
+scanimage --format=pdf | firmfact upload - --name scan-0034.pdf --workspace Acme
+```
+
+```text
+Uploading to Acme: 1 new
+Allowance: 21 of 25 documents left this month (it resets on 1 Oct 2026).
+
+LSEG-2026-09.pdf: invoice, ready for review
+  Vendor      Refinitiv Limited, linked to LSEG
+  Invoice     INV-8841207, 1 Sep 2026, due 1 Oct 2026; EUR 12,450.00
+  Contract    LSEG Workspace 2026 (C-0042), linked automatically (99%)
+  Variance    EUR 1,550.00 (14.2%) above the contract (preview)
+     1  Unit price 1,150.00 against 1,030.00 (+11.7%): +1,200.00
+     3  Not in the contract: +350.00
+  To review   Line 3 (Exchange fees): choose a contract item or skip it.
+  Review      https://firmfact.com/accounts/.../documents/...
+Nothing is booked until someone publishes it there.
+```
+
+Name files, folders with `--recursive`, or patterns such as `'*.pdf'`,
+which the CLI expands where the shell did not (Windows shells expand none).
+Hidden files are left out of folders and patterns, and so is a file there
+of a type firmfact does not read, while such a file named on its own is
+refused. `-` reads one file from standard input, and `--name` gives its
+name, extension and all: firmfact tells a file's type by its extension, and
+refuses one whose contents do not match it. Firmfact reads PDFs, PNG, JPEG,
+GIF and WebP images, Word (`.docx`) and Excel (`.xlsx`, `.xls`) files, CSV,
+TSV, text, email (`.eml`) and ZIP files, each under 50 MB.
+
+Before it sends anything, the CLI asks firmfact what it would do with the
+files, and prints that plan: which are new, which are already in the
+workspace, which it refuses and why, the workspace they go to and how much
+of this month's allowance of documents is left. It then sends the new
+files one at a time, and waits until firmfact has read them, for 15 minutes
+at most (`--wait-timeout`); on a terminal, a line says how far it has got.
+`--no-wait` stops once they are sent. A file already in the workspace is
+not sent again, so running the same command over a folder again is safe,
+and shows what firmfact read from it before; `--new-version` sends it all
+the same, as a new version. A file that changes while it is being sent is
+not stored.
+
+Each new file counts as a document of the monthly allowance. `--related`
+sends the files as one group of related documents, such as an invoice and
+its usage report, which counts once: at most 10 files and 100 MB together,
+and a file of the group that firmfact refuses keeps the others back too.
+Firmfact also recognises some sets of reports by their names, such as a
+Bloomberg SID set, which goes together, and the plan says so.
+
+A new sign-up's default workspace is Demo, which is rebuilt from sample data
+from time to time, and a rebuild removes what you upload there. So when
+neither `--workspace` nor `FIRMFACT_WORKSPACE` names the workspace and the
+upload would go to Demo, the CLI asks first. Off a terminal, and with
+`--json`, it exits with status 2 before reading any file, unless `--yes`
+says to go ahead.
+
+With more than three documents, the results are a table of them and a line
+that sums them up. `firmfact upload status` lists your recent uploads with
+their ids, and `firmfact upload status <id>` shows one in full; `--wait`
+waits until firmfact has read it.
+
+With `--json`, `data.results` holds a result for each file, in the order of
+the command line: its `path`, `filename`, `size` and `sha256`, the
+`outcome` (`created`, `duplicate`, `in_progress`, `busy`, `refused`,
+`skipped`, `not_sent` or `failed`), a `code` and `message` saying why when
+it was not stored, and the `document` as firmfact describes it, in the
+schema `meta.schema` names (`document_result/1`). `data.summary` counts the
+files by outcome and the documents by state, and `data.allowance` is the
+monthly allowance as it was before the upload.
+
+```bash
+firmfact upload ~/Invoices/2026-09 -r --workspace Acme --jq '.data.results[] | [.path, .outcome, .document.state] | @tsv'
+```
+
+The exit status says how it went: 0 when every file was uploaded or was
+already there, and was read (with `--no-wait`, sent); 1 when a file was
+refused, or a document could not be read or was skipped for the allowance;
+2 for a mistake on the command line, or an unnamed Demo workspace off a
+terminal; 3 when not signed in; 4 when the workspace does not exist; 5 when
+the wait ran out, or firmfact was busy or rate-limited, which a later run
+picks up; 6 when the host does not offer uploads yet. When files ended in
+more than one of these ways, 1 wins over 5.
+
 ### Exit codes
 
 A command exits with a status that says what kind of failure stopped it, so
@@ -340,11 +436,11 @@ is down:
 | Status | `status` | Meaning |
 |---|---|---|
 | 0 | | success |
-| 1 | `failed` | any other failure, such as an error the workspace tool reported or a failed `doctor` check |
-| 2 | `usage` | the command line is wrong: an unknown command or flag, a missing argument or required flag. A typo gets a suggestion, and a command group such as `vendors` or `config` refuses a subcommand it does not have. Also a command that may delete or overwrite data, run off a terminal without `--yes` |
+| 1 | `failed` | any other failure, such as an error the workspace tool reported, a failed `doctor` check, or a file an upload refused or a document firmfact could not read |
+| 2 | `usage` | the command line is wrong: an unknown command or flag, a missing argument or required flag. A typo gets a suggestion, and a command group such as `vendors` or `config` refuses a subcommand it does not have. Also a command that may delete or overwrite data, run off a terminal without `--yes`, and an upload to a Demo workspace that nobody named, off a terminal |
 | 3 | `not_signed_in` | not signed in, or the session has ended; run `firmfact login` |
 | 4 | `not_found` | no such workspace, profile, tool or record |
-| 5 | `unavailable` | rate-limited, the service failing, or no answer at all, or a wait for a workspace's setup that ran out of time; worth retrying later |
+| 5 | `unavailable` | rate-limited, the service failing, or no answer at all, or a wait for a workspace's setup or for uploaded documents to be read that ran out of time; worth retrying later |
 | 6 | `unsupported` | the host cannot serve this CLI: an older firmfact, another service, or a CLI below the host's minimum version |
 | 130 | `interrupted` | Ctrl-C or SIGTERM |
 
@@ -457,6 +553,10 @@ scripts). A bug report needs its output.
   they do for OpenSSL.
 - `login` uses OAuth 2 authorisation code with PKCE and a loopback redirect;
   your password never passes through the CLI.
+- `firmfact upload` sends only the files you name, and those in the folders
+  you name with `--recursive`, and prints its plan before it sends any. A
+  file read from standard input is copied to the system's temporary
+  directory while it is sent, and removed after.
 - `signup` takes a password only at its prompt, without echo, or on standard
   input with `--password-stdin`, never as an argument, where other users of
   the machine could read it.

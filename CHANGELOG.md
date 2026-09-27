@@ -39,6 +39,18 @@ change with it, so they are not listed here.
   `tools list` lists them.
 - `ask` puts a question to a workspace, and `--continue` follows up in the
   same thread.
+- `upload` sends invoices, contracts and other documents to a workspace for
+  firmfact to read: files, folders with `--recursive`, patterns, or
+  standard input with `--name`. It shows the plan first (what is new, what
+  is already there, what firmfact refuses and why, and the allowance left),
+  waits until the documents are read, and shows what was read, the
+  contract an invoice matches, a preview of how it compares with that
+  contract, and what the review page asks. Nothing is booked until someone
+  publishes it there. Files already in the workspace are not sent again;
+  `--related` sends files as one group, counted once; an upload to the
+  Demo workspace that nobody named asks first, or needs `--yes`.
+- `upload status` lists your recent uploads, or shows one in full, and
+  `--wait` waits until it is read.
 - A command that writes to a workspace says so in its help, and one that may
   delete or overwrite data asks first, or takes `--yes`.
 - Output for people and for scripts: tables that fit the terminal,
