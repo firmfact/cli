@@ -16,7 +16,8 @@ import (
 
 // The fuzz targets here cover what reaches the CLI from the network before
 // anything has vouched for it: a release's version, from GitHub's redirect
-// and the service's minimum, and a release's checksums.txt and archive.
+// and the service's minimum, GitHub's feed of releases, and a release's
+// checksums.txt and archive.
 // `go test` runs their seeds and every input in testdata/fuzz; CI fuzzes
 // each for 30 seconds on a pull request and for longer every night (see
 // .github/workflows/fuzz.yml). To fuzz one here:
@@ -83,6 +84,49 @@ func FuzzVersions(f *testing.F) {
 			cv, okV := canonical("v" + a)
 			if okV != okA || cv != ca {
 				t.Errorf("canonical(%q) = %q, %v but canonical(%q) = %q, %v", a, ca, okA, "v"+a, cv, okV)
+			}
+		}
+	})
+}
+
+// FuzzFeed reads GitHub's feed of releases, which names the versions update
+// --pre and the daily check for a pre-release may offer. Whatever arrives,
+// a version it yields is a release version that cannot leave its URL or
+// file name, the same input yields the same versions, and the newest is
+// one of them that none of the others is newer than. testdata/releases.atom
+// is a real feed, from github.com.
+func FuzzFeed(f *testing.F) {
+	real, err := os.ReadFile(filepath.Join("testdata", "releases.atom"))
+	if err != nil {
+		f.Fatal(err)
+	}
+	f.Add(real)
+	f.Add(mixedFeed)
+	f.Add(feedOf())
+	f.Add([]byte(`<feed xmlns="http://www.w3.org/2005/Atom"><entry><link href="/a/b/releases/tag/v1.2.3"/><link href="https://x/a/b/releases/tag/v2.0.0"/></entry></feed>`))
+	f.Add([]byte(`<feed xmlns="http://www.w3.org/2005/Atom"><entry><link rel="alternate" href="https://github.com/a/b/releases/tag/v1.2.3%2F..%2F..%2Fx"/></entry></feed>`))
+	f.Add([]byte("<html><body>Too many requests</body></html>"))
+	f.Fuzz(func(t *testing.T, body []byte) {
+		versions, err := parseFeed(body)
+		if err != nil && versions != nil {
+			t.Fatalf("an error, and versions %q", versions)
+		}
+		for _, v := range versions {
+			if !validVersion(v) || !IsRelease(v) || strings.HasPrefix(v, "v") {
+				t.Errorf("parseFeed yields %q, which is no release version without its v", v)
+			}
+		}
+		again, err2 := parseFeed(body)
+		if (err == nil) != (err2 == nil) || strings.Join(versions, " ") != strings.Join(again, " ") {
+			t.Errorf("two reads of one feed differ: %q, %v and %q, %v", versions, err, again, err2)
+		}
+		n := newest(versions)
+		if (n == "") != (len(versions) == 0) {
+			t.Fatalf("newest of %q is %q", versions, n)
+		}
+		for _, v := range versions {
+			if Newer(v, n) {
+				t.Errorf("%q is newer than the newest, %q", v, n)
 			}
 		}
 	})

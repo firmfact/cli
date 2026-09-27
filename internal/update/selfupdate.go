@@ -95,6 +95,9 @@ func install(ctx context.Context, exe, version string) error {
 	// Every hop must be https; the signature is what makes it trustworthy.
 	client := httpx.New(httpx.Options{Timeout: 5 * time.Minute, FollowHTTPS: true})
 	sums, err := download(ctx, client, base+checksumsFile)
+	if errors.Is(err, errNotFound) {
+		return &NotPublishedError{Version: version, URL: base + checksumsFile}
+	}
 	if err != nil {
 		return err
 	}
@@ -130,6 +133,21 @@ func install(ctx context.Context, exe, version string) error {
 
 // errNotFound is a release asset that does not exist.
 var errNotFound = errors.New("not found")
+
+// NotPublishedError is a version with no release to install: its
+// checksums.txt, which every release has, is not there. So it is for a
+// version never released, a tag without a release, a draft, whose files
+// GitHub serves to nobody else, and a release whose files are still on
+// their way up.
+type NotPublishedError struct {
+	Version string
+	// URL is the checksums.txt that was not found.
+	URL string
+}
+
+func (e *NotPublishedError) Error() string {
+	return fmt.Sprintf("release v%s is not published: %s was not found", e.Version, e.URL)
+}
 
 func download(ctx context.Context, client *httpx.Client, url string) ([]byte, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)

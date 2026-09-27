@@ -704,7 +704,7 @@ func TestSnapshotsAreNotGatedButReleaseCandidatesAre(t *testing.T) {
 	}
 	var got updateResult
 	decodeOnly(t, "update", stdout, &got)
-	if got != (updateResult{Version: "0.3.0-rc1", Latest: "0.3.0", Upgrade: "brew upgrade firmfact"}) {
+	if got != (updateResult{Version: "0.3.0-rc1", Latest: "0.3.0", Target: "0.3.0", Upgrade: "brew upgrade firmfact"}) {
 		t.Errorf("update = %+v; want 0.3.0 offered to 0.3.0-rc1", got)
 	}
 }

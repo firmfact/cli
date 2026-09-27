@@ -93,10 +93,11 @@ The code that reads what reaches the CLI over the network has fuzz tests: a
 tool's answer on its way to a table, CSV or TSV (`FuzzFindRows` and
 `FuzzColumnsFor` in `cmd`), a document an upload reads back on its way to
 the terminal (`FuzzDocumentBlock` in `cmd`), and a release's version,
-`checksums.txt` and archive (`FuzzVersions`, `FuzzChecksumFor` and
-`FuzzExtract` in `internal/update`). `go test` runs their seeds and the inputs in each
-package's `testdata/fuzz`, among them real release archives and a real
-`checksums.txt`. `.github/workflows/fuzz.yml` fuzzes each target for 30
+GitHub's feed of releases, and a release's `checksums.txt` and archive
+(`FuzzVersions`, `FuzzFeed`, `FuzzChecksumFor` and `FuzzExtract` in
+`internal/update`). `go test` runs their seeds and the inputs in each
+package's `testdata/fuzz`, among them real release archives, a real feed
+and a real `checksums.txt`. `.github/workflows/fuzz.yml` fuzzes each target for 30
 seconds on every pull request and for 10 minutes every night. To fuzz one
 yourself:
 

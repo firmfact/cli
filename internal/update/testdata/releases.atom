@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom" xmlns:media="http://search.yahoo.com/mrss/" xml:lang="en-US">
+  <id>tag:github.com,2008:https://github.com/firmfact/cli/releases</id>
+  <link type="text/html" rel="alternate" href="https://github.com/firmfact/cli/releases"/>
+  <link type="application/atom+xml" rel="self" href="https://github.com/firmfact/cli/releases.atom"/>
+  <title>Release notes from cli</title>
+  <updated>2026-09-27T17:10:31Z</updated>
+  <entry>
+    <id>tag:github.com,2008:Repository/1390997455/v0.1.0-rc.1</id>
+    <updated>2026-09-27T17:39:56Z</updated>
+    <link rel="alternate" type="text/html" href="https://github.com/firmfact/cli/releases/tag/v0.1.0-rc.1"/>
+    <title>v0.1.0-rc.1</title>
+    <content type="html">&lt;h3&gt;Added&lt;/h3&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;code&gt;signup&lt;/code&gt; creates an account from the terminal: your work email, a code sent to it, your own workspace, and a Demo workspace of sample data to explore while yours is set up. A script can sign up in two runs, with the password and the code on standard input.&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;login&lt;/code&gt; signs in through your browser, and &lt;code&gt;logout&lt;/code&gt; revokes the sign-in. Tokens are kept in your operating system&#39;s keyring.&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;whoami&lt;/code&gt;, and &lt;code&gt;workspaces list&lt;/code&gt;, &lt;code&gt;use&lt;/code&gt; and &lt;code&gt;status&lt;/code&gt;, with &lt;code&gt;--wait&lt;/code&gt; to wait for a workspace&#39;s setup.&lt;/li&gt;
+&lt;li&gt;Workspace commands, such as &lt;code&gt;vendors list&lt;/code&gt; and &lt;code&gt;analyze cost-trends&lt;/code&gt;, made from the tools the firmfact service offers, with a flag for each of their arguments, and kept up to date; &lt;code&gt;call&lt;/code&gt; runs any tool by its name, and &lt;code&gt;tools list&lt;/code&gt; lists them.&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;ask&lt;/code&gt; puts a question to a workspace, and &lt;code&gt;--continue&lt;/code&gt; follows up in the same thread.&lt;/li&gt;
+&lt;li&gt;A command that writes to a workspace says so in its help, and one that may delete or overwrite data asks first, or takes &lt;code&gt;--yes&lt;/code&gt;.&lt;/li&gt;
+&lt;li&gt;Output for people and for scripts: tables that fit the terminal, &lt;code&gt;--format table|json|csv|tsv&lt;/code&gt;, &lt;code&gt;--columns&lt;/code&gt;, &lt;code&gt;--all&lt;/code&gt; for every page, &lt;code&gt;--json&lt;/code&gt; with the same three keys from every workspace command, and &lt;code&gt;--jq&lt;/code&gt; to filter the JSON with a jq expression, no jq needed. CSV and TSV put a quote in front of text a spreadsheet would run as a formula.&lt;/li&gt;
+&lt;li&gt;An exit status for each kind of failure, and errors as JSON on stderr with &lt;code&gt;--json&lt;/code&gt;.&lt;/li&gt;
+&lt;li&gt;Profiles for more than one account or host, and &lt;code&gt;FIRMFACT_HOST&lt;/code&gt;, &lt;code&gt;FIRMFACT_PROFILE&lt;/code&gt;, &lt;code&gt;FIRMFACT_WORKSPACE&lt;/code&gt; and &lt;code&gt;FIRMFACT_TOKEN&lt;/code&gt; for scripts and CI.&lt;/li&gt;
+&lt;li&gt;A daily check for a newer release and for the oldest version the service supports, which &lt;code&gt;FIRMFACT_NO_UPDATE_CHECK=1&lt;/code&gt; turns off. &lt;code&gt;update&lt;/code&gt; replaces a downloaded binary once the release&#39;s signature and checksum check out and the new binary runs.&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;doctor&lt;/code&gt; checks the installation, the proxy, the connection and the sign-in; &lt;code&gt;version&lt;/code&gt; shows the build; &lt;code&gt;--debug&lt;/code&gt; (or &lt;code&gt;FIRMFACT_DEBUG=1&lt;/code&gt;) logs every request, with tokens, codes and passwords redacted.&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;claim&lt;/code&gt; makes &lt;code&gt;ff&lt;/code&gt;, or another short name, run the CLI, and &lt;code&gt;claim --undo&lt;/code&gt; takes it back.&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;open&lt;/code&gt; opens firmfact in your browser, on the host you use.&lt;/li&gt;
+&lt;li&gt;Tab completion for bash, zsh, fish and PowerShell, and man pages.&lt;/li&gt;
+&lt;li&gt;Releases for Linux, macOS and Windows on amd64 and arm64: through Homebrew (&lt;code&gt;brew install firmfact/tap/firmfact&lt;/code&gt;), Scoop, the one-line installers on firmfact.com/cli and &lt;code&gt;go install github.com/firmfact/cli/cmd/firmfact&lt;/code&gt;, or as signed, reproducible archives with build provenance.&lt;/li&gt;
+&lt;/ul&gt;</content>
+    <author>
+      <name>github-actions[bot]</name>
+    </author>
+    <media:thumbnail height="30" width="30" url="https://avatars.githubusercontent.com/in/15368?s=60&amp;v=4"/>
+  </entry>
+</feed>

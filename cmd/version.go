@@ -62,7 +62,8 @@ func (a *App) buildReport() buildReport {
 type versionReport struct {
 	buildReport
 	// Latest is the newest release the last check heard of (the daily
-	// one, or doctor's); "" before any has.
+	// one, doctor's or update's), pre-releases included for a
+	// pre-release; "" before any has.
 	Latest          string `json:"latest"`
 	UpdateAvailable bool   `json:"update_available"`
 	// Upgrade is the command that upgrades this installation, when an
@@ -86,10 +87,10 @@ func newVersionCommand(app *App) *cobra.Command {
 		RunE: func(_ *cobra.Command, _ []string) error {
 			r := versionReport{buildReport: app.buildReport()}
 			if cacheDir, err := config.CacheDir(); err == nil {
-				r.Latest = update.LatestKnown(cacheDir)
+				r.Latest = update.LatestKnown(cacheDir, r.Version)
 			}
 			if r.Latest != "" && update.Offer(r.Latest, r.Version) {
-				r.UpdateAvailable, r.Upgrade = true, update.UpgradeHint(r.InstallMethod, app.Name)
+				r.UpdateAvailable, r.Upgrade = true, upgradeTo(r.InstallMethod, app.Name, r.Latest)
 			}
 			if app.JSONOutput {
 				return app.PrintJSON(r)

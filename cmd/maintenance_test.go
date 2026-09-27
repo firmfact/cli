@@ -17,8 +17,8 @@ import (
 )
 
 // releases fakes GitHub for update: the latest release is latest ("" for
-// a GitHub that cannot be reached), and every download is missing. It
-// returns the number of downloads asked for.
+// a GitHub that is failing, which answers 502), and every download is
+// missing. It returns the number of downloads asked for.
 func releases(t *testing.T, latest string) func() int32 {
 	t.Helper()
 	var downloads atomic.Int32
@@ -40,24 +40,38 @@ func releases(t *testing.T, latest string) func() int32 {
 	return downloads.Load
 }
 
-// update says when there is nothing newer, fails as unavailable when
-// GitHub cannot say what the latest release is, and otherwise downloads
-// it; here the download is missing, which fails the command and leaves the
-// running binary as it was.
-func TestUpdateCommand(t *testing.T) {
-	isolate(t)
-	// However the test binary was built, it counts as a direct download.
+// directDownload makes the test binary count as a direct download,
+// however it was built, or skips the test.
+func directDownload(t *testing.T) {
+	t.Helper()
 	for _, key := range []string{"HOMEBREW_PREFIX", "SCOOP", "SCOOP_GLOBAL"} {
 		t.Setenv(key, "")
 	}
 	if m := update.InstallMethod(); m != update.Direct {
 		t.Skipf("the test binary counts as installed with %s", m)
 	}
+}
+
+// update says when there is nothing newer, fails as unavailable when
+// GitHub cannot say what the latest release is, and otherwise downloads
+// it; here the download is missing, which fails the command and leaves the
+// running binary as it was.
+func TestUpdateCommand(t *testing.T) {
+	isolate(t)
+	directDownload(t)
 	host := meServer(t).URL
 
 	releases(t, "")
 	code, msg := exitStatusOf(t.Context(), "0.1.0", "--host", host, "update")
-	if code != ExitUnavailable || !strings.HasPrefix(msg, "could not find the latest release") {
+	if code != ExitUnavailable || !strings.HasPrefix(msg, "GitHub cannot say which releases there are just now") || !strings.HasSuffix(msg, "; try again later") {
+		t.Errorf("GitHub failing: exit %d (%s)", code, msg)
+	}
+	// Only a GitHub that gives no answer is one that could not be reached.
+	prev := update.LatestReleaseURL
+	update.LatestReleaseURL = closedHost(t) + "/latest"
+	code, msg = exitStatusOf(t.Context(), "0.1.0", "--host", host, "update")
+	update.LatestReleaseURL = prev
+	if code != ExitUnavailable || !strings.HasPrefix(msg, "could not reach GitHub: ") || !strings.HasSuffix(msg, "; check your connection or https://github.com/firmfact/cli/releases") {
 		t.Errorf("GitHub unreachable: exit %d (%s)", code, msg)
 	}
 
@@ -78,7 +92,7 @@ func TestUpdateCommand(t *testing.T) {
 		t.Fatal(err)
 	}
 	stdout, stderr, err := run("0.1.0", "--host", host, "--json", "update")
-	if err == nil || !strings.HasSuffix(err.Error(), "/download/v0.2.0/checksums.txt: not found") {
+	if err == nil || !strings.HasSuffix(err.Error(), "/download/v0.2.0/checksums.txt was not found") {
 		t.Fatalf("got %v, want the missing download", err)
 	}
 	if stdout != "" || stderr != "Updating firmfact 0.1.0 to 0.2.0...\n" {
@@ -94,17 +108,12 @@ func TestUpdateCommand(t *testing.T) {
 
 // update runs whatever FIRMFACT_PROFILE names, as it runs with a config
 // file that cannot be read: a profile that does not exist must not stand
-// between a user and a fixed release. The host it then asks is the
-// default one, as for a new profile; a command that uses the profile gets
-// no host for it.
+// between a user and a fixed release. The host whose check it adds what it
+// learns to is then the default one, as for a new profile; a command that
+// uses the profile gets no host for it.
 func TestUpdateRunsWithoutTheProfile(t *testing.T) {
 	isolate(t)
-	for _, key := range []string{"HOMEBREW_PREFIX", "SCOOP", "SCOOP_GLOBAL"} {
-		t.Setenv(key, "")
-	}
-	if m := update.InstallMethod(); m != update.Direct {
-		t.Skipf("the test binary counts as installed with %s", m)
-	}
+	directDownload(t)
 	host := meServer(t).URL
 	releases(t, "v0.1.0")
 	t.Setenv("FIRMFACT_PROFILE", "gone")

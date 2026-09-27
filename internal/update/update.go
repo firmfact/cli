@@ -45,13 +45,28 @@ var LatestReleaseURL = "https://github.com/" + Repo + "/releases/latest"
 
 // Status is what the last check found. CheckedAt is when the day's check
 // last completed; GitHubCheckedAt is when one of them last asked GitHub,
-// which a check does only when told to (see Check).
+// which a check does only when told to (see Check). Latest is GitHub's
+// latest release, never a pre-release; Newest the newest in its feed of
+// releases, pre-releases included, which a check reads only for someone
+// running a pre-release (see GitHubFor).
 type Status struct {
 	CheckedAt       time.Time `json:"checked_at"`
 	GitHubCheckedAt time.Time `json:"github_checked_at,omitzero"`
 	Host            string    `json:"host"`
 	Latest          string    `json:"latest"`
+	Newest          string    `json:"newest,omitempty"`
 	Minimum         string    `json:"minimum"`
+}
+
+// NewestFor is the newest release the check knows of that someone running
+// current may be offered: the latest release, or for someone on a
+// pre-release, the newest in the feed when that is newer. "" when the
+// check knows of none. Whether it is worth offering is Offer's to say.
+func (s Status) NewestFor(current string) string {
+	if GitHubFor(current) == WithPreReleases && (s.Latest == "" || Newer(s.Newest, s.Latest)) {
+		return s.Newest
+	}
+	return s.Latest
 }
 
 // Cached is what the last check found for host, and whether the next check
@@ -70,12 +85,12 @@ func Cached(host, cacheDir string, github bool) (Status, bool) {
 	return s, due
 }
 
-// Check asks the server for the oldest CLI version it supports and, when
-// github is set, GitHub for the latest release, both at once, and records
+// Check asks the server for the oldest CLI version it supports and GitHub
+// what github says (nothing, with NoGitHub), both at once, and records
 // what they said. A source that cannot be reached leaves its field as the
 // last check found it; it never fails a command.
-func Check(ctx context.Context, host, cacheDir string, github bool) Status {
-	return check(ctx, host, cacheDir, latestURL(github))
+func Check(ctx context.Context, host, cacheDir string, github GitHub) Status {
+	return check(ctx, host, cacheDir, sourceOf(github))
 }
 
 // Start is Check in the background, so that neither source adds to the
@@ -84,15 +99,15 @@ func Check(ctx context.Context, host, cacheDir string, github bool) Status {
 // the answers that did come in are recorded. A check stopped before every
 // source it asked had answered does not count as the day's check, so the
 // next run asks again.
-func Start(ctx context.Context, host, cacheDir string, github bool) (stop func()) {
+func Start(ctx context.Context, host, cacheDir string, github GitHub) (stop func()) {
 	// Read here, not in the background: a test points it elsewhere and
 	// back again around the command.
-	page := latestURL(github)
+	src := sourceOf(github)
 	ctx, cancel := context.WithCancel(ctx)
 	done := make(chan struct{})
 	go func() {
 		defer close(done)
-		check(ctx, host, cacheDir, page)
+		check(ctx, host, cacheDir, src)
 	}()
 	return func() {
 		cancel()
@@ -100,42 +115,36 @@ func Start(ctx context.Context, host, cacheDir string, github bool) (stop func()
 	}
 }
 
-// latestURL is the page to ask for the latest release, or "" to leave
-// GitHub out.
-func latestURL(github bool) string {
-	if !github {
-		return ""
-	}
-	return LatestReleaseURL
-}
-
 // answer is what one source of a check said. stopped means the check was
 // stopped before the source answered, so its silence says nothing.
 type answer struct {
 	fromGitHub bool
-	version    string
+	releases   Releases
+	minimum    string
 	stopped    bool
 }
 
-// check asks the server, and GitHub at page unless page is "", and records
-// each answer as it comes: a server that answers at once is kept even when
-// the command ends while GitHub is still being waited for. An answer cut
-// short says nothing, so it is not written down.
-func check(ctx context.Context, host, cacheDir, page string) Status {
+// check asks the server, and GitHub what src says, and records each answer
+// as it comes: a server that answers at once is kept even when the command
+// ends while GitHub is still being waited for. An answer cut short says
+// nothing, so it is not written down.
+func check(ctx context.Context, host, cacheDir string, src source) Status {
 	answers := make(chan answer, 2)
 	asked := 1
 	go func() {
 		minimum, err := serverMinimum(ctx, host)
-		answers <- answer{version: minimum, stopped: err != nil && ctx.Err() != nil}
+		answers <- answer{minimum: minimum, stopped: err != nil && ctx.Err() != nil}
 	}()
-	if page != "" {
+	github := src.github != NoGitHub
+	if github {
 		asked++
 		go func() {
-			latest, err := latestRelease(ctx, page)
-			answers <- answer{fromGitHub: true, version: latest, stopped: err != nil && ctx.Err() != nil}
+			found, err := ask(ctx, src, checkTimeout)
+			answers <- answer{fromGitHub: true, releases: found, stopped: err != nil && ctx.Err() != nil}
 		}()
 	}
-	var latest, minimum string
+	var found Releases
+	var minimum string
 	complete := true
 	s, _ := Cached(host, cacheDir, false)
 	for i := range asked {
@@ -145,11 +154,11 @@ func check(ctx context.Context, host, cacheDir, page string) Status {
 			continue
 		}
 		if a.fromGitHub {
-			latest = a.version
+			found = a.releases
 		} else {
-			minimum = a.version
+			minimum = a.minimum
 		}
-		s = record(host, cacheDir, latest, minimum, complete && i == asked-1, page != "")
+		s = record(host, cacheDir, found, minimum, complete && i == asked-1, github)
 	}
 	return s
 }
@@ -164,44 +173,42 @@ func serverMinimum(ctx context.Context, host string) (string, error) {
 	return server.MinimumVersion, err
 }
 
-// LatestRelease is the newest release's version, as GitHub's latest-release
-// page names it in its redirect to that release
-// (.../releases/tag/v1.2.3).
-func LatestRelease(ctx context.Context) (string, error) {
-	return latestRelease(ctx, LatestReleaseURL)
-}
-
-// latestRelease reads the version from where page redirects. The release
-// page itself is never fetched. The only redirect followed is to another
-// latest-release page, as a renamed repository sends, and over https only.
-func latestRelease(ctx context.Context, page string) (string, error) {
-	ctx, cancel := context.WithTimeout(ctx, checkTimeout)
-	defer cancel()
-	client := httpx.New(httpx.Options{Timeout: checkTimeout})
-	for hops := 0; ; hops++ {
-		to, err := redirectOf(ctx, client, page)
-		if err != nil {
-			return "", err
-		}
-		if _, tag, ok := strings.Cut(to.Path, "/releases/tag/"); ok {
-			if !validVersion(tag) {
-				return "", fmt.Errorf("the latest release is tagged %q, which is not a version", tag)
+// latestRelease reads the latest release's version from where page, GitHub's
+// latest-release page, redirects (.../releases/tag/v1.2.3), within limit.
+// The release page itself is never fetched. The only redirect followed is
+// to another latest-release page, as a renamed repository sends, and over
+// https only. A redirect to the list of releases, which GitHub sends while
+// no release is published or every one is a pre-release, is errNoLatest.
+func latestRelease(ctx context.Context, page string, limit time.Duration) (string, error) {
+	return withinLimit(ctx, page, limit, func(ctx context.Context) (string, error) {
+		client := httpx.New(httpx.Options{Timeout: limit})
+		for hops := 0; ; hops++ {
+			to, err := redirectOf(ctx, client, page)
+			if err != nil {
+				return "", err
 			}
-			return strings.TrimPrefix(tag, "v"), nil
+			if _, tag, ok := strings.Cut(to.Path, "/releases/tag/"); ok {
+				if !validVersion(tag) {
+					return "", fmt.Errorf("the latest release is tagged %q, which is not a version", tag)
+				}
+				return strings.TrimPrefix(tag, "v"), nil
+			}
+			if strings.HasSuffix(to.Path, "/releases") {
+				return "", errNoLatest
+			}
+			// Anywhere else is no answer GitHub is known to give.
+			if !strings.HasSuffix(to.Path, "/releases/latest") {
+				return "", fmt.Errorf("%s names no latest release", page)
+			}
+			if to.Scheme != "https" {
+				return "", &httpx.InsecureRedirectError{To: to.Redacted()}
+			}
+			if hops == maxHops {
+				return "", fmt.Errorf("stopped after %d redirects", maxHops)
+			}
+			page = to.String()
 		}
-		// Anywhere else, such as the list of releases a repository
-		// without any sends to, names no release.
-		if !strings.HasSuffix(to.Path, "/releases/latest") {
-			return "", fmt.Errorf("%s names no latest release", page)
-		}
-		if to.Scheme != "https" {
-			return "", &httpx.InsecureRedirectError{To: to.Redacted()}
-		}
-		if hops == maxHops {
-			return "", fmt.Errorf("stopped after %d redirects", maxHops)
-		}
-		page = to.String()
-	}
+	})
 }
 
 // redirectOf is where page redirects to. A HEAD request is enough: the
@@ -218,7 +225,7 @@ func redirectOf(ctx context.Context, client *httpx.Client, page string) (*url.UR
 	resp.Body.Close()
 	to, err := resp.Location()
 	if resp.StatusCode/100 != 3 || err != nil {
-		return nil, fmt.Errorf("%s answered %s, not a redirect to the latest release", page, resp.Status)
+		return nil, &AnswerError{URL: page, Status: resp.Status, Code: resp.StatusCode, want: "a redirect to the latest release"}
 	}
 	return to, nil
 }
@@ -259,23 +266,30 @@ func withV(v string) string {
 	return "v" + strings.TrimPrefix(v, "v")
 }
 
-// Record stores what a check learned about host, the latest release and
-// the server's minimum version, and returns the status. Either may be
-// empty when its source could not be reached; the cached value stands in.
-// github says whether GitHub was asked for the latest release. doctor asks
-// the server itself, so it records its findings here.
-func Record(ctx context.Context, host, cacheDir, latest, minimum string, github bool) Status {
-	return record(host, cacheDir, latest, minimum, ctx.Err() == nil, github)
+// Record stores what a check learned about host, the releases on GitHub
+// and the server's minimum version, and returns the status. Any of them
+// may be empty when its source could not be reached or was not asked; the
+// cached value stands in. github says whether GitHub was asked. doctor
+// asks the server itself, so it records its findings here.
+func Record(ctx context.Context, host, cacheDir string, found Releases, minimum string, github bool) Status {
+	return record(host, cacheDir, found, minimum, ctx.Err() == nil, github)
+}
+
+// Remember stores what update learned of the releases on GitHub, as a
+// check for host would. It is not the day's check, which asks the server
+// too, so that stays due when it was.
+func Remember(host, cacheDir string, found Releases) {
+	record(host, cacheDir, found, "", false, false)
 }
 
 // record is Record for a check that may not have heard from every source.
 // Only a complete one counts as the day's check, and as the day's question
 // to GitHub when it asked GitHub; an incomplete one keeps what it learned
 // but leaves the check due, so the next run asks again.
-func record(host, cacheDir, latest, minimum string, complete, github bool) Status {
+func record(host, cacheDir string, found Releases, minimum string, complete, github bool) Status {
 	cached := load(cacheDir)
 	now := time.Now()
-	s := Status{CheckedAt: now, Host: host, Latest: latest, Minimum: minimum}
+	s := Status{CheckedAt: now, Host: host, Latest: found.Latest, Newest: found.Newest, Minimum: minimum}
 	if github {
 		s.GitHubCheckedAt = now
 	}
@@ -284,6 +298,9 @@ func record(host, cacheDir, latest, minimum string, complete, github bool) Statu
 	if cached.Host == host {
 		if s.Latest == "" {
 			s.Latest = cached.Latest
+		}
+		if s.Newest == "" {
+			s.Newest = cached.Newest
 		}
 		if s.Minimum == "" {
 			s.Minimum = cached.Minimum
@@ -304,10 +321,11 @@ func record(host, cacheDir, latest, minimum string, complete, github bool) Statu
 	return s
 }
 
-// LatestKnown is the newest release the last recorded check knew of,
-// whichever host that check was for, as GitHub's answer does not depend
-// on the host; "" when it knew of none.
-func LatestKnown(cacheDir string) string { return load(cacheDir).Latest }
+// LatestKnown is the newest release the last recorded check knew of that
+// someone running current may be offered (see Status.NewestFor), whichever
+// host that check was for, as GitHub's answer does not depend on the host;
+// "" when it knew of none.
+func LatestKnown(cacheDir, current string) string { return load(cacheDir).NewestFor(current) }
 
 const statusFile = "version-check.json"
 
@@ -353,7 +371,8 @@ func Newer(a, b string) bool {
 // Offer reports whether release latest is worth offering to someone running
 // current: it must be newer, and someone on a release is never offered a
 // pre-release, since they did not choose to test one. GitHub's latest
-// release is never a pre-release; this keeps that promise here too.
+// release is never a pre-release, but the feed a check reads for someone
+// on a pre-release lists them; this keeps the promise either way.
 func Offer(latest, current string) bool {
 	if !Newer(latest, current) {
 		return false
@@ -474,4 +493,29 @@ func UpgradeHint(m Method, name string) string {
 		return "winget upgrade --exact --id Firmfact.CLI"
 	}
 	return name + " update"
+}
+
+// PinHint is the command that keeps the package manager m from upgrading
+// firmfact past the version it has, or "" when m cannot: Homebrew pins
+// formulae only, and firmfact is a cask.
+func PinHint(m Method) string {
+	switch m {
+	case Scoop:
+		return "scoop hold firmfact"
+	case Winget:
+		return "winget pin add --exact --id Firmfact.CLI"
+	}
+	return ""
+}
+
+// InstallHint is the command with which the package manager m installs
+// release version in place of the one it has, or "" when m cannot. Only
+// winget keeps every version it was given; Homebrew's cask and Scoop's
+// manifest name the latest release alone. None of them is given a
+// pre-release (see skip_upload in .goreleaser.yaml).
+func InstallHint(m Method, version string) string {
+	if m != Winget || IsPreRelease(version) {
+		return ""
+	}
+	return "winget install --exact --id Firmfact.CLI --version " + version
 }

@@ -35,7 +35,7 @@ func knowLatest(t *testing.T, latest string) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	update.Record(context.Background(), "https://elsewhere.example", cacheDir, latest, "", true)
+	update.Record(context.Background(), "https://elsewhere.example", cacheDir, update.Releases{Latest: latest}, "", true)
 }
 
 // version prints what the build stamped, what the binary was built with

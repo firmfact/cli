@@ -1,0 +1,40 @@
+Update this CLI to the latest release, which is never a pre-release. Before
+anything is replaced, the release's checksums.txt must carry a valid
+signature by firmfact's release key, the archive must match its checksum
+there, and the new binary must run here and report the version it was
+downloaded as. Should the swap fail, the old binary stays.
+
+--pre takes the newest release, pre-releases such as 0.3.0-rc.1 included.
+--version installs the release it names, such as 0.2.0 or v0.2.0, with the
+same checks; one older than the version you have is installed once you
+confirm, or off a terminal with --yes.
+
+A copy that Homebrew, Scoop or winget installed is left to that package
+manager: update says how to upgrade it, and with --pre or --version, what
+the package manager can do instead.
+
+Usage:
+  ff update [flags]
+
+Examples:
+  ff update
+  ff update --pre
+  ff update --version 0.2.0
+  ff update --version 0.1.0 --yes   # back to an older release, in a script
+
+Flags:
+  -h, --help              help for update
+      --pre               take the newest release, pre-releases included
+      --version version   install release version, such as 0.2.0 or 0.3.0-rc.1
+  -y, --yes               with --version, install a release older than this one without asking
+
+Global Flags:
+      --debug              log each request and answer on stderr, with secrets redacted (or set FIRMFACT_DEBUG=1)
+      --format format      output format: table, json, csv or tsv (default: table; csv and tsv print a workspace command's rows)
+      --host string        Firmfact host (default: FIRMFACT_HOST, else the profile's, else https://firmfact.com); localhost:<port> for local development
+      --insecure-http      allow plain http to a host other than this machine (your token travels unencrypted)
+      --jq expression      filter the JSON output with a jq expression, such as '.data[].name'; implies --json
+      --json               print machine-readable JSON (the same as --format json)
+      --profile string     profile to use, one that exists (default: FIRMFACT_PROFILE, else the current profile)
+      --timeout duration   limit for each request, such as 90s (default: 60s, 90s for workspace commands and 5m for a chat, and 30s for the server to start answering; or set FIRMFACT_TIMEOUT)
+      --workspace string   workspace id or name (default: FIRMFACT_WORKSPACE, else the profile's workspace)

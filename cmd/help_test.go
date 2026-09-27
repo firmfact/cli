@@ -37,6 +37,7 @@ func TestHelpGolden(t *testing.T) {
 		{"vendors_list", []string{"--host", fixtureHost, "vendors", "list", "--help"}},
 		{"analyze_cost_trends", []string{"--host", fixtureHost, "analyze", "cost-trends", "--help"}},
 		{"call", []string{"--host", fixtureHost, "call", "--help"}},
+		{"update", []string{"update", "--help"}},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {

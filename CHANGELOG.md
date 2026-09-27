@@ -67,6 +67,12 @@ change with it, so they are not listed here.
   supports, which `FIRMFACT_NO_UPDATE_CHECK=1` turns off. `update` replaces
   a downloaded binary once the release's signature and checksum check out
   and the new binary runs.
+- `update --pre` takes the newest release, pre-releases included, and
+  `update --version` installs the release it names, both with the same
+  checks; going back to an older release asks first, or needs `--yes`. On
+  a pre-release, the daily check tells you of newer pre-releases too. For a
+  copy that Homebrew, Scoop or winget installed, `update` says how that
+  package manager keeps it at a version, where it can.
 - `doctor` checks the installation, the proxy, the connection and the
   sign-in; `version` shows the build; `--debug` (or `FIRMFACT_DEBUG=1`) logs
   every request, with tokens, codes and passwords redacted.
@@ -78,3 +84,10 @@ change with it, so they are not listed here.
   (`brew install firmfact/tap/firmfact`), Scoop, the one-line installers on
   firmfact.com/cli and `go install github.com/firmfact/cli/cmd/firmfact`, or
   as signed, reproducible archives with build provenance.
+
+### Fixed
+
+- While only pre-releases were published, `update` said it could not find
+  the latest release and to check your connection. It now says that no
+  release is published yet and how to take the newest pre-release, and
+  speaks of the connection only when GitHub cannot be reached.

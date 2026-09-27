@@ -196,6 +196,12 @@ func TestReleaseCoordinates(t *testing.T) {
 	}
 }
 
+// latest is the latest release as the daily check asks for it.
+func latest() (string, error) {
+	found, err := Ask(context.Background(), FinalReleases)
+	return found.Latest, err
+}
+
 // The latest version comes from where GitHub's latest-release page
 // redirects, not from its rate-limited API, and a tag that is not a
 // version is refused.
@@ -203,21 +209,22 @@ func TestLatestReleaseReadsTheRedirect(t *testing.T) {
 	tag := "v1.4.0"
 	asked := fakeGitHub(t, &tag)
 
-	if got, err := LatestRelease(context.Background()); err != nil || got != "1.4.0" {
-		t.Errorf("LatestRelease = %q, %v", got, err)
+	if got, err := latest(); err != nil || got != "1.4.0" {
+		t.Errorf("latest release = %q, %v", got, err)
 	}
 	if n := asked.Load(); n != 1 {
 		t.Errorf("%d requests for the latest release, want 1", n)
 	}
 	for _, tag = range []string{"v1.4.0/../../evil", "nightly", "v1.4", "v01.4.0", "v1.4.0-rc..1", "v1.4.0+build"} {
-		if got, err := LatestRelease(context.Background()); err == nil || got != "" {
-			t.Errorf("tag %q: LatestRelease = %q, %v; want an error", tag, got, err)
+		if got, err := latest(); err == nil || got != "" {
+			t.Errorf("tag %q: latest release = %q, %v; want an error", tag, got, err)
 		}
 	}
-	// A repository without releases sends to its list of releases.
+	// A repository without releases, or with pre-releases only, sends to
+	// its list of releases.
 	tag = ""
-	if got, err := LatestRelease(context.Background()); err == nil || !strings.Contains(err.Error(), "names no latest release") {
-		t.Errorf("no release: LatestRelease = %q, %v", got, err)
+	if got, err := latest(); !errors.Is(err, errNoLatest) || !strings.Contains(err.Error(), "names no latest release") {
+		t.Errorf("no release: latest release = %q, %v", got, err)
 	}
 }
 
@@ -237,11 +244,12 @@ func TestLatestReleaseRedirects(t *testing.T) {
 
 	pointAt(t, srv.URL+"/old/releases/latest")
 	var insecure *httpx.InsecureRedirectError
-	if _, err := LatestRelease(context.Background()); !errors.As(err, &insecure) {
+	if _, err := latest(); !errors.As(err, &insecure) {
 		t.Errorf("a redirect to plain http: %v", err)
 	}
 	pointAt(t, srv.URL+"/repos/x/releases/latest")
-	if _, err := LatestRelease(context.Background()); err == nil || !strings.Contains(err.Error(), "200 OK, not a redirect") {
+	var answer *AnswerError
+	if _, err := latest(); !errors.As(err, &answer) || answer.Busy() || !strings.Contains(err.Error(), "200 OK, not a redirect") {
 		t.Errorf("an answer without a redirect: %v", err)
 	}
 }
@@ -270,7 +278,7 @@ func TestCheckAsksGitHubOnlyWhenTold(t *testing.T) {
 	host, server := fakeServer(t, "0.5.0")
 	dir := t.TempDir()
 
-	s := Check(context.Background(), host, dir, false)
+	s := Check(context.Background(), host, dir, NoGitHub)
 	if github.Load() != 0 || server.Load() != 1 {
 		t.Errorf("without GitHub: %d GitHub and %d server requests, want 0 and 1", github.Load(), server.Load())
 	}
@@ -286,7 +294,7 @@ func TestCheckAsksGitHubOnlyWhenTold(t *testing.T) {
 		t.Error("a check without GitHub counts as the day's question to GitHub")
 	}
 
-	s = Check(context.Background(), host, dir, true)
+	s = Check(context.Background(), host, dir, FinalReleases)
 	if github.Load() != 1 || s.Latest != "1.4.0" || s.Minimum != "0.5.0" {
 		t.Errorf("with GitHub: %d GitHub requests, %+v", github.Load(), s)
 	}
@@ -294,7 +302,7 @@ func TestCheckAsksGitHubOnlyWhenTold(t *testing.T) {
 		t.Errorf("cached %+v, due %v", got, due)
 	}
 	// A later check without GitHub keeps the day's question to GitHub.
-	Check(context.Background(), host, dir, false)
+	Check(context.Background(), host, dir, NoGitHub)
 	if got, due := Cached(host, dir, true); due || got.Latest != "1.4.0" {
 		t.Errorf("after a check without GitHub: cached %+v, due %v", got, due)
 	}
@@ -317,7 +325,7 @@ func TestStopDoesNotWaitForGitHub(t *testing.T) {
 	host, _ := fakeServer(t, "0.5.0")
 	dir := t.TempDir()
 
-	stop := Start(context.Background(), host, dir, true)
+	stop := Start(context.Background(), host, dir, FinalReleases)
 	<-arrived
 	waitFor(t, func() bool { s, _ := Cached(host, dir, true); return s.Minimum == "0.5.0" })
 	start := time.Now()
@@ -341,13 +349,13 @@ func TestAStoppedCheckWritesNothing(t *testing.T) {
 	defer blackhole.Close()
 	pointAt(t, blackhole.URL+"/releases/latest")
 	dir := t.TempDir()
-	Record(context.Background(), "https://a.example", dir, "1.0.0", "0.5.0", true)
+	Record(context.Background(), "https://a.example", dir, Releases{Latest: "1.0.0"}, "0.5.0", true)
 	before, err := os.ReadFile(filepath.Join(dir, statusFile))
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	stop := Start(context.Background(), blackhole.URL, dir, true)
+	stop := Start(context.Background(), blackhole.URL, dir, FinalReleases)
 	<-arrived
 	<-arrived
 	stop()
@@ -461,12 +469,12 @@ func TestExtractFindsTheBinary(t *testing.T) {
 func TestRecordKeepsWhatWasKnown(t *testing.T) {
 	dir := t.TempDir()
 	ctx := context.Background()
-	Record(ctx, "https://a.example", dir, "1.0.0", "0.5.0", true)
+	Record(ctx, "https://a.example", dir, Releases{Latest: "1.0.0"}, "0.5.0", true)
 
-	if s := Record(ctx, "https://a.example", dir, "", "", true); s.Latest != "1.0.0" || s.Minimum != "0.5.0" {
+	if s := Record(ctx, "https://a.example", dir, Releases{}, "", true); s.Latest != "1.0.0" || s.Minimum != "0.5.0" {
 		t.Errorf("same host: %+v", s)
 	}
-	if s := Record(ctx, "https://b.example", dir, "", "0.7.0", true); s.Latest != "" || s.Minimum != "0.7.0" {
+	if s := Record(ctx, "https://b.example", dir, Releases{}, "0.7.0", true); s.Latest != "" || s.Minimum != "0.7.0" {
 		t.Errorf("other host: %+v", s)
 	}
 	if s := load(dir); s.Host != "https://b.example" || s.Minimum != "0.7.0" {
@@ -489,7 +497,7 @@ func TestRecordDoesNotWriteThroughALink(t *testing.T) {
 	if err := os.Symlink(victim, filepath.Join(dir, statusFile)); err != nil {
 		t.Fatal(err)
 	}
-	Record(context.Background(), "https://a.example", dir, "1.0.0", "0.5.0", true)
+	Record(context.Background(), "https://a.example", dir, Releases{Latest: "1.0.0"}, "0.5.0", true)
 	if got, err := os.ReadFile(victim); err != nil || string(got) != "export KEEP=1\n" {
 		t.Errorf("the link's target now holds %q, %v", got, err)
 	}
@@ -505,11 +513,11 @@ func TestRecordDoesNotWriteThroughALink(t *testing.T) {
 // check was for, though the host's minimum is not.
 func TestLatestKnown(t *testing.T) {
 	dir := t.TempDir()
-	if got := LatestKnown(dir); got != "" {
+	if got := LatestKnown(dir, "0.9.0"); got != "" {
 		t.Errorf("before any check: %q", got)
 	}
-	Record(context.Background(), "https://a.example", dir, "1.0.0", "0.5.0", true)
-	if got := LatestKnown(dir); got != "1.0.0" {
+	Record(context.Background(), "https://a.example", dir, Releases{Latest: "1.0.0"}, "0.5.0", true)
+	if got := LatestKnown(dir, "0.9.0"); got != "1.0.0" {
 		t.Errorf("LatestKnown = %q, want 1.0.0", got)
 	}
 	if s, _ := Cached("https://b.example", dir, true); s.Latest != "" || s.Minimum != "" {

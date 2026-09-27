@@ -4,9 +4,9 @@ name: Fuzz
 # network: a tool's answer, from its rows to the table, CSV and TSV they
 # print as (cmd/fuzz_test.go), a document an upload reads back, on its way
 # to the terminal (cmd/upload_document_test.go), and a release's version,
-# checksums.txt and archive (internal/update/fuzz_test.go). Thirty seconds each on a pull
-# request, to catch what a change breaks; ten minutes each every night, to
-# go deeper. `go test` in ci.yml already runs every seed and every input in
+# GitHub's feed of releases, and a release's checksums.txt and archive
+# (internal/update/fuzz_test.go). Thirty seconds each on a pull request, to
+# catch what a change breaks; ten minutes each every night, to go deeper. `go test` in ci.yml already runs every seed and every input in
 # testdata/fuzz.
 on:
   pull_request:
@@ -35,6 +35,7 @@ jobs:
           - { package: ./cmd, target: FuzzColumnsFor }
           - { package: ./cmd, target: FuzzDocumentBlock }
           - { package: ./internal/update, target: FuzzVersions }
+          - { package: ./internal/update, target: FuzzFeed }
           - { package: ./internal/update, target: FuzzChecksumFor }
           - { package: ./internal/update, target: FuzzExtract }
     runs-on: ubuntu-latest

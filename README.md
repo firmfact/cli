@@ -177,7 +177,7 @@ does not.
 | `open` | Open firmfact in your browser, on the host you use |
 | `doctor` | Check the installation, proxy, connection and sign-in |
 | `version` | The version, the commit it was built from, the platform, how it was installed and the latest release known |
-| `update` | Update to the latest release |
+| `update` | Update to the latest release; `--pre` takes pre-releases too, `--version` the release you name |
 | `claim [name]` | Make `ff` (or another short name) run this CLI; `--undo` reverses it |
 
 The workspace commands come from the firmfact service itself, so new ones
@@ -437,9 +437,9 @@ is down:
 |---|---|---|
 | 0 | | success |
 | 1 | `failed` | any other failure, such as an error the workspace tool reported, a failed `doctor` check, or a file an upload refused or a document firmfact could not read |
-| 2 | `usage` | the command line is wrong: an unknown command or flag, a missing argument or required flag. A typo gets a suggestion, and a command group such as `vendors` or `config` refuses a subcommand it does not have. Also a command that may delete or overwrite data, run off a terminal without `--yes`, and an upload to a Demo workspace that nobody named, off a terminal |
+| 2 | `usage` | the command line is wrong: an unknown command or flag, a missing argument or required flag. A typo gets a suggestion, and a command group such as `vendors` or `config` refuses a subcommand it does not have. Also a command that may delete or overwrite data, run off a terminal without `--yes`, an upload to a Demo workspace that nobody named, off a terminal, and `update --version` to an older release off a terminal without `--yes` |
 | 3 | `not_signed_in` | not signed in, or the session has ended; run `firmfact login` |
-| 4 | `not_found` | no such workspace, profile, tool or record |
+| 4 | `not_found` | no such workspace, profile, tool or record, or no such release for `update --version` |
 | 5 | `unavailable` | rate-limited, the service failing, or no answer at all, or a wait for a workspace's setup or for uploaded documents to be read that ran out of time; worth retrying later |
 | 6 | `unsupported` | the host cannot serve this CLI: an older firmfact, another service, or a CLI below the host's minimum version |
 | 130 | `interrupted` | Ctrl-C or SIGTERM |
@@ -505,9 +505,10 @@ upgrade (`brew upgrade firmfact`, `scoop update firmfact`,
 download, which checks the release's signature and checksum, and that the new
 binary runs and reports the right version, before replacing itself; should
 the swap fail, the old binary stays). If the service no longer
-supports your version, the CLI says so instead of failing in odd ways. A
-release candidate is offered the release it leads up to; a release is never
-offered a release candidate.
+supports your version, the CLI says so instead of failing in odd ways. On a
+pre-release, such as a release candidate, you are offered newer
+pre-releases and the release they lead up to; a release is never offered a
+pre-release.
 
 In CI (when `CI` is set) or when output goes to a pipe or a file, nobody would
 see that line, so the CLI does not ask GitHub for a newer release; it still
@@ -517,6 +518,27 @@ as `0.3.1-dev+b005a6f`, or what `go build` gives a checkout) skip the check;
 `go install ...@<version>` builds report that version and take part. Set
 `FIRMFACT_NO_UPDATE_CHECK=1` to turn the check off; `doctor` then leaves
 GitHub out too.
+
+`firmfact update` takes the latest release, which is never a pre-release.
+`firmfact update --pre` takes the newest release, pre-releases included,
+and `firmfact update --version 0.2.0` (or `v0.2.0`) installs exactly that
+release. Each is held to the same checks of signature, checksum and trial
+run, and a release older than the one you have is installed only once you
+confirm, or with `--yes` off a terminal. While only pre-releases have been
+published, `firmfact update` says so and how to take the newest one:
+
+```bash
+firmfact update --pre                    # the newest release, pre-releases included
+firmfact update --version 0.1.0 --yes    # back to an older release, in a script
+```
+
+Homebrew, Scoop and winget have releases only, never pre-releases, and
+upgrade the copy they installed themselves: for such a copy, `update` names
+the package manager's upgrade command, and with `--pre` or `--version` what
+it can do instead. Scoop keeps a version with `scoop hold firmfact`; winget
+installs a given release with
+`winget install --exact --id Firmfact.CLI --version 0.2.0` and keeps it with
+`winget pin add --exact --id Firmfact.CLI`; a Homebrew cask cannot be held.
 
 `firmfact version` shows the version you have, the commit it was built from
 and the Go version it was built with, how it was installed and the latest
@@ -530,10 +552,13 @@ scripts). A bug report needs its output.
   - your firmfact host (`https://firmfact.com` unless you chose another),
     for what you ask of it, and once a day for the oldest CLI version the
     host supports;
-  - `github.com`, for the latest release: once a day on a terminal (never
-    in CI; see [Staying up to date](#staying-up-to-date)) and each time
-    you run `doctor`. `firmfact update`, when you run it, downloads the
-    release from there, and from the host GitHub sends the download to.
+  - `github.com`, for the latest release (on a pre-release, its feed of
+    releases, which lists pre-releases too): once a day on a terminal
+    (never in CI; see [Staying up to date](#staying-up-to-date)) and each
+    time you run `doctor`. `firmfact update`, when you run it, downloads
+    the release from there, and from the host GitHub sends the download
+    to. None of this goes through GitHub's API, which allows 60 requests
+    an hour per address.
 
   `FIRMFACT_NO_UPDATE_CHECK=1` turns the daily check off and keeps `doctor`
   off GitHub, so that only `update` goes there. Each request names the

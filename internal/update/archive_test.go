@@ -6,6 +6,7 @@ import (
 	"bytes"
 	"compress/gzip"
 	"context"
+	"errors"
 	"io"
 	"io/fs"
 	"net/http"
@@ -191,7 +192,7 @@ func TestInstallNeedsEveryReleaseFile(t *testing.T) {
 		status  int
 		want    string
 	}{
-		"no release":       {status: http.StatusNotFound, want: "/v1.2.3/checksums.txt: not found"},
+		"no release":       {status: http.StatusNotFound, want: "/v1.2.3/checksums.txt was not found"},
 		"no archive":       {missing: "/v1.2.3/" + archiveFile, status: http.StatusNotFound, want: "/v1.2.3/" + archiveFile + ": not found"},
 		"a server failure": {status: http.StatusInternalServerError, want: "/v1.2.3/checksums.txt: 500 Internal Server Error"},
 	}
@@ -223,6 +224,12 @@ func TestInstallNeedsEveryReleaseFile(t *testing.T) {
 			err := install(context.Background(), target, "1.2.3")
 			if err == nil || !strings.HasSuffix(err.Error(), c.want) {
 				t.Fatalf("want an error ending %q, got %v", c.want, err)
+			}
+			// Only a release without its checksums.txt is one that is not
+			// published; update --version says there is no such release.
+			var missing *NotPublishedError
+			if errors.As(err, &missing) != (name == "no release") {
+				t.Errorf("%v: a *NotPublishedError is %v", err, !(name == "no release"))
 			}
 			unchanged(t, target)
 		})

@@ -3,7 +3,6 @@ package cmd
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -81,29 +80,47 @@ func checkVersion(app *App, cmd *cobra.Command) error {
 	}
 	ctx := cmd.Context()
 	tooOld := func(s update.Status) bool { return s.Minimum != "" && update.Newer(s.Minimum, api.Version) }
-	github := askGitHub(app)
-	s, due := update.Cached(host, cacheDir, github)
+	// Someone on a pre-release hears of newer pre-releases too, from
+	// GitHub's feed of releases; anyone else of the latest release only.
+	github := update.NoGitHub
+	if askGitHub(app) {
+		github = update.GitHubFor(api.Version)
+	}
+	s, due := update.Cached(host, cacheDir, github != update.NoGitHub)
 	// A refusal on an answer that is due for renewal is renewed first, in
 	// case the server has lowered its minimum since. The command would not
 	// run anyway, so the wait costs it nothing, and a refused command ends
 	// too soon for a check beside it to finish.
 	if due && tooOld(s) {
-		s, due = update.Check(ctx, host, cacheDir, false), false
+		s, due = update.Check(ctx, host, cacheDir, update.NoGitHub), false
 		if err := ctx.Err(); err != nil {
 			return err
 		}
 	}
-	hint := update.UpgradeHint(update.InstallMethod(), app.Name)
+	method := update.InstallMethod()
 	if tooOld(s) {
-		return withExit(ExitUnsupported, fmt.Errorf("this is %s %s; %s needs %s or newer. Upgrade with: %s", app.Name, api.Version, host, ui.SafeLine(s.Minimum), hint))
+		return withExit(ExitUnsupported, fmt.Errorf("this is %s %s; %s needs %s or newer. Upgrade with: %s", app.Name, api.Version, host, ui.SafeLine(s.Minimum), update.UpgradeHint(method, app.Name)))
 	}
 	if due {
 		stopWithCommand(update.Start(ctx, host, cacheDir, github))
 	}
-	if s.Latest != "" && update.Offer(s.Latest, api.Version) && app.Interactive() && !app.JSONOutput {
-		fmt.Fprintf(app.Err, "%s %s is available (you have %s). Upgrade with: %s\n", app.Name, ui.SafeLine(s.Latest), api.Version, hint)
+	if newest := s.NewestFor(api.Version); newest != "" && update.Offer(newest, api.Version) && app.Interactive() && !app.JSONOutput {
+		fmt.Fprintf(app.Err, "%s %s is available (you have %s). Upgrade with: %s\n", app.Name, ui.SafeLine(newest), api.Version, upgradeTo(method, app.Name, newest))
 	}
 	return nil
+}
+
+// upgradeTo is the command that takes this installation to release
+// version: the package manager's, or update, with --pre for a
+// pre-release, which update on its own does not install. A package
+// manager has releases only, and a copy it installed is one, so it is
+// never offered a pre-release.
+func upgradeTo(m update.Method, name, version string) string {
+	hint := update.UpgradeHint(m, name)
+	if m == update.Direct && update.IsPreRelease(version) {
+		hint += " --pre"
+	}
+	return hint
 }
 
 // updateCheckOff reports whether FIRMFACT_NO_UPDATE_CHECK turns the daily
@@ -149,81 +166,6 @@ func stopBackgroundChecks() {
 	for _, stop := range stops {
 		stop()
 	}
-}
-
-func newUpdateCommand(app *App) *cobra.Command {
-	return &cobra.Command{
-		Use:   "update",
-		Short: "Update this CLI to the latest release",
-		Args:  cobra.NoArgs,
-		// Neither a broken config file nor a profile that does not exist
-		// should stand between a user and a fixed release. The host it asks
-		// for the oldest version it supports is the profile's, or the
-		// default one.
-		Annotations: map[string]string{withoutConfigAnnotation: "true", noProfileAnnotation: "true"},
-		RunE: func(cmd *cobra.Command, _ []string) error {
-			app.missingProfileOK = true
-			cacheDir, err := config.CacheDir()
-			if err != nil {
-				return err
-			}
-			host, err := app.Host()
-			if err != nil {
-				return err
-			}
-			s := update.Check(cmd.Context(), host, cacheDir, true)
-			if err := cmd.Context().Err(); err != nil {
-				return err
-			}
-			if s.Latest == "" {
-				return withExit(ExitUnavailable, errors.New("could not find the latest release; check your connection or "+"https://github.com/"+update.Repo+"/releases"))
-			}
-			result := updateResult{Version: api.Version, Latest: s.Latest}
-			if !update.Offer(s.Latest, api.Version) {
-				if app.JSONOutput {
-					return app.PrintJSON(result)
-				}
-				fmt.Fprintf(app.Out, "You have the latest version (%s).\n", api.Version)
-				return nil
-			}
-			if m := update.InstallMethod(); m != update.Direct {
-				if app.JSONOutput {
-					result.Upgrade = update.UpgradeHint(m, app.Name)
-					return app.PrintJSON(result)
-				}
-				fmt.Fprintf(app.Out, "%s %s is available. This copy was installed with %s; upgrade with:\n\n  %s\n", app.Name, ui.SafeLine(s.Latest), m, update.UpgradeHint(m, app.Name))
-				return nil
-			}
-			progress := app.Out
-			if app.JSONOutput {
-				progress = app.Err
-			}
-			fmt.Fprintf(progress, "Updating %s %s to %s...\n", app.Name, api.Version, ui.SafeLine(s.Latest))
-			path, err := update.SelfUpdate(cmd.Context(), s.Latest)
-			if err != nil {
-				return err
-			}
-			if app.JSONOutput {
-				result.Updated, result.Path = true, path
-				return app.PrintJSON(result)
-			}
-			fmt.Fprintf(app.Out, "%s Updated %s.\n", app.Mode().Rainbow("Done."), path)
-			return nil
-		},
-	}
-}
-
-// updateResult is what update prints with --json.
-type updateResult struct {
-	// Version is the version that ran the command.
-	Version string `json:"version"`
-	Latest  string `json:"latest"`
-	Updated bool   `json:"updated"`
-	// Path is the binary that was replaced, once updated.
-	Path string `json:"path,omitempty"`
-	// Upgrade is the command to upgrade a copy that a package manager
-	// installed, which update leaves to it.
-	Upgrade string `json:"upgrade,omitempty"`
 }
 
 // doctorReport is what doctor prints with --json.
@@ -293,14 +235,19 @@ func newDoctorCommand(app *App) *cobra.Command {
 			start := time.Now()
 			server, serverErr := getVersion(ctx, c)
 			took := time.Since(start)
-			var latest string
+			// GitHub is asked what the daily check would ask it for this
+			// version: pre-releases too for a pre-release.
+			var found update.Releases
+			github := update.NoGitHub
 			if !updateCheckOff() {
-				latest, _ = update.LatestRelease(ctx)
+				github = update.GitHubFor(api.Version)
+				found, _ = update.Ask(ctx, github)
 			}
-			s := update.Status{Host: c.Host, Latest: latest, Minimum: server.minimum}
+			s := update.Status{Host: c.Host, Latest: found.Latest, Newest: found.Newest, Minimum: server.minimum}
 			if cacheDir, err := config.CacheDir(); err == nil {
-				s = update.Record(ctx, c.Host, cacheDir, latest, server.minimum, !updateCheckOff())
+				s = update.Record(ctx, c.Host, cacheDir, found, server.minimum, github != update.NoGitHub)
 			}
+			newest := s.NewestFor(api.Version)
 			switch {
 			// A local or snapshot build is not held to the minimum, just as
 			// checkVersion lets it run every command.
@@ -308,11 +255,11 @@ func newDoctorCommand(app *App) *cobra.Command {
 				report(true, "version", api.Version+" is a development build; the minimum and latest versions do not apply")
 			case s.Minimum != "" && update.Newer(s.Minimum, api.Version):
 				report(false, "version", fmt.Sprintf("%s is below the minimum %s; run: %s", api.Version, s.Minimum, update.UpgradeHint(update.InstallMethod(), app.Name)))
-			case s.Latest != "" && update.Offer(s.Latest, api.Version):
-				report(true, "version", fmt.Sprintf("%s works; %s is available (%s)", api.Version, s.Latest, update.UpgradeHint(update.InstallMethod(), app.Name)))
-			case s.Latest == "" && updateCheckOff():
+			case newest != "" && update.Offer(newest, api.Version):
+				report(true, "version", fmt.Sprintf("%s works; %s is available (%s)", api.Version, newest, upgradeTo(update.InstallMethod(), app.Name, newest)))
+			case newest == "" && updateCheckOff():
 				report(true, "version", api.Version+" (FIRMFACT_NO_UPDATE_CHECK is set, so GitHub was not asked for a newer release)")
-			case s.Latest == "":
+			case newest == "":
 				report(true, "version", api.Version+" (could not check for a newer release)")
 			default:
 				report(true, "version", api.Version+" is the latest")
