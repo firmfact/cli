@@ -102,6 +102,43 @@ type Read struct {
 	Lines []Line `json:"lines,omitempty"`
 	// Applied is what netting guidelines changed.
 	Applied *Applied `json:"applied,omitempty"`
+	// Records are a spreadsheet's or an HR file's, a type each, in the
+	// server's order. An older server does not send them, and an invoice,
+	// a contract or an order form never has them.
+	Records []RecordCounts `json:"records,omitempty"`
+}
+
+// RecordCounts is one type of record a spreadsheet or an HR file holds, and
+// what publishing it would do with them. Type is a stable key such as
+// person, cost_centre or product, whatever the member's language; Label is
+// its plural in that language. Total is the sum of the counts but Leavers,
+// and of any count a newer server adds.
+type RecordCounts struct {
+	Type  string `json:"type"`
+	Label string `json:"label,omitempty"`
+	Total int    `json:"total"`
+	// New are created, with nothing for a person to decide.
+	New int `json:"new"`
+	// Changed match a record in the workspace and change fields on it;
+	// ChangedFields names up to five of those fields, as labels, the most
+	// frequent first.
+	Changed   int `json:"changed"`
+	Unchanged int `json:"unchanged"`
+	// Unmatched need a person: a suggested match to confirm, a possible
+	// duplicate, or a row that can be neither matched nor created.
+	Unmatched int `json:"unmatched"`
+	// The server sends these only when they are not zero. Skipped were
+	// set aside on the review page. Hidden match records the caller may
+	// not view. NotInReview are past the records of a type the review page
+	// shows, which publishing imports as they are. Leavers, for people,
+	// are people in the workspace whom the file no longer lists: no rows
+	// of the file, so not part of Total.
+	Skipped     int `json:"skipped,omitempty"`
+	Hidden      int `json:"hidden,omitempty"`
+	NotInReview int `json:"not_in_review,omitempty"`
+	Leavers     int `json:"leavers,omitempty"`
+
+	ChangedFields []string `json:"changed_fields,omitempty"`
 }
 
 // Party is a vendor or legal entity as read, and how the review links it:

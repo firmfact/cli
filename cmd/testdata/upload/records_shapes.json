@@ -1,0 +1,57 @@
+[
+  {"name": "older-server.xlsx", "document": {
+    "id": "b2c3d4e5-0000-4000-8000-000000000001", "state": "ready_for_review",
+    "url": "https://app.firmfact.example/accounts/1977ef5a-480b-4ea7-94ce-ce9fe4f308fd/documents/b2c3d4e5-0000-4000-8000-000000000001",
+    "own": true, "filename": "older-server.xlsx", "type": "spreadsheet", "publishable": true,
+    "read": {"type": "spreadsheet"},
+    "review": {"counts": {"total": 3, "linked": 1, "ready": 2, "suggested": 0, "needs_review": 0, "blocked": 0, "updates": 0, "skipped": 0},
+               "items": [], "more_items": 0, "summary": "Nothing flagged; ready to publish."},
+    "booked": false,
+    "notes": ["Nothing is booked until someone publishes it on the review page."]}},
+  {"name": "counts.csv", "document": {
+    "id": "b2c3d4e5-0000-4000-8000-000000000002", "state": "published",
+    "url": "https://app.firmfact.example/accounts/1977ef5a-480b-4ea7-94ce-ce9fe4f308fd/documents/b2c3d4e5-0000-4000-8000-000000000002",
+    "own": true, "filename": "counts.csv", "type": "spreadsheet", "publishable": true, "booked": true,
+    "read": {"type": "spreadsheet", "records": [
+      {"type": "location", "label": "Locations", "total": 40, "new": 0, "changed": 0, "unchanged": 0, "unmatched": 0,
+       "archived": 40, "changed_fields": [], "detail": {"sheet": "Sites"}},
+      {"type": "cost_centre", "label": "Cost centres", "total": 3, "new": 0, "changed": 3, "unchanged": 0, "unmatched": 0,
+       "changed_fields": ["", "  "]},
+      {"type": "person", "label": "People", "total": 0, "new": 0, "changed": 0, "unchanged": 0, "unmatched": 0,
+       "leavers": 4, "changed_fields": []},
+      {"type": "project", "label": "Projects", "total": 12500, "new": 12500, "changed": 0, "unchanged": 0, "unmatched": 0},
+      {"type": "platform", "label": "Platforms", "total": 7, "new": 0, "changed": 7, "unchanged": 0, "unmatched": 0,
+       "changed_fields": ["Name", "Owner", "Notes", "Valid from", "Valid to", "Description", "Manager"]},
+      {"type": "allocation", "label": "Allocations", "total": 6, "new": -2, "changed": 0, "unchanged": 5, "unmatched": 0,
+       "hidden": 1}
+    ]}}},
+  {"name": "labels.xlsx", "document": {
+    "id": "b2c3d4e5-0000-4000-8000-000000000003", "state": "ready_for_review",
+    "url": "https://app.firmfact.example/accounts/1977ef5a-480b-4ea7-94ce-ce9fe4f308fd/documents/b2c3d4e5-0000-4000-8000-000000000003",
+    "own": true, "filename": "labels.xlsx", "type": "spreadsheet", "publishable": true,
+    "read": {"type": "spreadsheet", "records": [
+      {"type": "person", "label": "Personen", "total": 2, "new": 1, "changed": 1, "unchanged": 0, "unmatched": 0,
+       "changed_fields": ["Abteilung", "Kostenstelle"]},
+      {"type": "contract_item", "label": "Éléments de contrat", "total": 3, "new": 3, "changed": 0, "unchanged": 0, "unmatched": 0},
+      {"type": "contract_item", "label": "Componentes de contrato", "total": 1, "new": 0, "changed": 0, "unchanged": 1, "unmatched": 0},
+      {"type": "future_thing", "total": 1, "new": 1},
+      {"total": 1, "unmatched": 1}
+    ]},
+    "booked": false,
+    "notes": ["Nothing is booked until someone publishes it on the review page."]}},
+  {"name": "hostile.xlsx", "document": {
+    "id": "b2c3d4e5-0000-4000-8000-000000000004", "state": "ready_for_review",
+    "url": "https://app.firmfact.example/accounts/1977ef5a-480b-4ea7-94ce-ce9fe4f308fd/documents/b2c3d4e5-0000-4000-8000-000000000004",
+    "own": true, "filename": "hostile.xlsx", "type": "spreadsheet", "publishable": true,
+    "read": {"type": "spreadsheet", "records": [
+      {"type": "person", "label": "People\u001b]52;c;cm0gLXJmIH4=\u0007", "total": 3, "new": 1, "changed": 1, "unchanged": 0,
+       "unmatched": 1, "changed_fields": ["Depart‮tnem", "Cost\ncentre", "\u001b[31mSalary", "Team\u009b2J"]},
+      {"type": "vendor\u001b[1A", "label": " ", "total": 2, "new": 2, "changed": 0, "unchanged": 0, "unmatched": 0},
+      {"type": "product", "label": "Products\r\nerror: forged by the server", "total": 1, "new": 0, "changed": 0,
+       "unchanged": 1, "unmatched": 0},
+      {"type": "other", "label": "Other​ records⁦", "total": 1, "new": 0, "changed": 0, "unchanged": 0,
+       "unmatched": 1}
+    ]},
+    "booked": false,
+    "notes": ["Nothing is booked until someone publishes it on the review page."]}}
+]

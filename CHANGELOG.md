@@ -45,8 +45,11 @@ change with it, so they are not listed here.
   is already there, what firmfact refuses and why, and the allowance left),
   waits until the documents are read, and shows what was read, the
   contract an invoice matches, a preview of how it compares with that
-  contract, and what the review page asks. Nothing is booked until someone
-  publishes it there. Files already in the workspace are not sent again;
+  contract, and what the review page asks. For a spreadsheet or an HR
+  file, a line for each type of record says how many rows publishing
+  would add, change (and in which fields), leave as they are, or leave for
+  a person to match. Nothing is booked until someone publishes it there.
+  Files already in the workspace are not sent again;
   `--related` sends files as one group, counted once; an upload to the
   Demo workspace that nobody named asks first, or needs `--yes`. A file of
   a type firmfact does not read in a folder or a pattern, and a link that

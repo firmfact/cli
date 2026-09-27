@@ -1,0 +1,27 @@
+older-server.xlsx: spreadsheet, ready for review
+  To review   Nothing flagged; ready to publish.
+  Review      https://app.firmfact.example/accounts/1977ef5a-480b-4ea7-94ce-ce9fe4f308fd/documents/b2c3d4e5-0000-4000-8000-000000000001
+
+counts.csv: spreadsheet, published
+  Locations         40 read
+  Cost centres       3 read: 3 with changes
+  People             0 read; 4 no longer in the file
+  Projects      12,500 read: 12,500 new
+  Platforms          7 read: 7 with changes (Name, Owner, Notes, Valid from, Valid to and 2 more)
+  Allocations        6 read: 5 unchanged, 1 matched to a record you cannot view
+  Review      https://app.firmfact.example/accounts/1977ef5a-480b-4ea7-94ce-ce9fe4f308fd/documents/b2c3d4e5-0000-4000-8000-000000000002
+
+labels.xlsx: spreadsheet, ready for review
+  Personen                 2 read: 1 new, 1 with changes (Abteilung, Kostenstelle)
+  Éléments de contrat      3 read: 3 new
+  Componentes de contrato  1 read: 1 unchanged
+  Future thing             1 read: 1 new
+  Records                  1 read: 1 unmatched
+  Review      https://app.firmfact.example/accounts/1977ef5a-480b-4ea7-94ce-ce9fe4f308fd/documents/b2c3d4e5-0000-4000-8000-000000000003
+
+hostile.xlsx: spreadsheet, ready for review
+  People\u001b]52;c;cm0gL…  3 read: 1 new, 1 with changes (Depart\u202etnem, Cost centre, \u001b[31mSalary, Team\u009b2J), 1 unmatched
+  Vendor\u001b[1A           2 read: 2 new
+  Products  error: forged…  1 read: 1 unchanged
+  Other\u200b records\u20…  1 read: 1 unmatched
+  Review      https://app.firmfact.example/accounts/1977ef5a-480b-4ea7-94ce-ce9fe4f308fd/documents/b2c3d4e5-0000-4000-8000-000000000004

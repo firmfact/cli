@@ -11,24 +11,27 @@ import (
 	"github.com/firmfact/cli/internal/upload"
 )
 
-// shapes are the documents in testdata/upload/shapes.json: one of each
-// shape document_result/1 can take that the upload tests do not reach.
-func shapes(t *testing.T) []struct {
+// documentShape is a document of a fixture such as
+// testdata/upload/shapes.json, and the name it is shown under.
+type documentShape struct {
 	Name      string          `json:"name"`
 	Duplicate bool            `json:"duplicate"`
 	Document  upload.Document `json:"document"`
-} {
+}
+
+// shapesIn reads the documents of the fixture file in testdata/upload.
+func shapesIn(t *testing.T, file string) []documentShape {
 	t.Helper()
-	var out []struct {
-		Name      string          `json:"name"`
-		Duplicate bool            `json:"duplicate"`
-		Document  upload.Document `json:"document"`
-	}
-	if err := json.Unmarshal([]byte(readFixtureFile(t, filepath.Join(uploadTestdata, "shapes.json"))), &out); err != nil {
+	var out []documentShape
+	if err := json.Unmarshal([]byte(readFixtureFile(t, filepath.Join(uploadTestdata, file))), &out); err != nil {
 		t.Fatal(err)
 	}
 	return out
 }
+
+// shapes are the documents in testdata/upload/shapes.json: one of each
+// shape document_result/1 can take that the upload tests do not reach.
+func shapes(t *testing.T) []documentShape { return shapesIn(t, "shapes.json") }
 
 // Someone else's document is its state and link; one still being read, or
 // skipped for the allowance, says so; netting guidelines were booked when
@@ -45,6 +48,32 @@ func TestDocumentBlocks(t *testing.T) {
 		printDocument(&buf, s.Name, &s.Document, s.Duplicate, 72)
 	}
 	assertGoldenFile(t, filepath.Join(uploadTestdata, "shapes.golden"), buf.String())
+}
+
+// A spreadsheet's records take a line a type, from the shapes in
+// testdata/upload/records_shapes.json: an older server's spreadsheet has
+// none, as before; a count that is zero or less is left out, and so are
+// changed fields that are blank; a count this CLI does not know is in the
+// total alone; people the file no longer lists come after the rows; labels
+// in other languages line up by their characters, not their bytes; a type
+// without a label is named by its key; and a label that tries to drive the
+// terminal, or to start a line of its own, is escaped, and cut when it
+// would push the lines across it.
+func TestRecordLines(t *testing.T) {
+	var buf bytes.Buffer
+	for i, s := range shapesIn(t, "records_shapes.json") {
+		if i > 0 {
+			buf.WriteString("\n")
+		}
+		printDocument(&buf, s.Name, &s.Document, s.Duplicate, 72)
+	}
+	assertGoldenFile(t, filepath.Join(uploadTestdata, "records_shapes.golden"), buf.String())
+	assertNoTerminalControls(t, "records", buf.String())
+	for _, line := range strings.Split(buf.String(), "\n") {
+		if safe := ui.SafeLine(line); safe != line {
+			t.Errorf("a line with characters a terminal acts on: %q (escaped %q)", line, safe)
+		}
+	}
 }
 
 // The table says the same of each shape in a few words.
@@ -154,14 +183,16 @@ func FuzzDocumentBlock(f *testing.F) {
 		}
 		f.Add(buf.String())
 	}
-	var shapes []struct {
-		Document json.RawMessage `json:"document"`
-	}
-	if err := json.Unmarshal([]byte(readFixtureFile(f, filepath.Join(uploadTestdata, "shapes.json"))), &shapes); err != nil {
-		f.Fatal(err)
-	}
-	for _, s := range shapes {
-		f.Add(string(s.Document))
+	for _, file := range []string{"shapes.json", "records_shapes.json"} {
+		var shapes []struct {
+			Document json.RawMessage `json:"document"`
+		}
+		if err := json.Unmarshal([]byte(readFixtureFile(f, filepath.Join(uploadTestdata, file))), &shapes); err != nil {
+			f.Fatal(err)
+		}
+		for _, s := range shapes {
+			f.Add(string(s.Document))
+		}
 	}
 	f.Add(hostileEntry)
 	f.Add(`{"state":"ready_for_review","read":{"amounts":{"total":1e400},"lines":[{"quantity":"x"}]},"variance":{"status":"variance","amount":"-0","lines":[{"line":-5}]}}`)

@@ -5,9 +5,12 @@ import (
 	"io"
 	"math/big"
 	"regexp"
+	"strconv"
 	"strings"
 	"text/tabwriter"
 	"time"
+	"unicode"
+	"unicode/utf8"
 
 	"github.com/firmfact/cli/internal/ui"
 	"github.com/firmfact/cli/internal/upload"
@@ -100,6 +103,7 @@ func printDocument(w io.Writer, name string, doc *upload.Document, duplicate boo
 		if label, text := readLine(doc.Type, rd); text != "" {
 			b.line(label, text)
 		}
+		printRecords(w, rd.Records)
 	}
 	printContractMatch(b, doc)
 	printVariance(b, w, doc.Variance)
@@ -168,6 +172,8 @@ func typeWords(t string) string {
 	switch t {
 	case "bloomberg_netting_guidelines":
 		return "Bloomberg netting guidelines"
+	case "hr_roster":
+		return "HR file"
 	}
 	return words(t)
 }
@@ -243,6 +249,104 @@ func readLine(docType string, rd *upload.Read) (label, text string) {
 	head := joinSome(", ", number, dateWords(dates.Document), due)
 	return label, joinSome("; ", head, total)
 }
+
+// A spreadsheet's or an HR file's records take a line a type in its block,
+// in the order the server sends them, saying what publishing would do with
+// its rows:
+//
+//	People        250 read: 230 new, 15 with changes (Department, Cost centre), 5 unmatched
+//
+// A count that is zero is left out. The labels come from the server, in the
+// member's language, so they are printed as they came, escaped.
+
+// maxRecordLabel is the most columns a type's label takes; a longer one is
+// cut, so that one label cannot push every line across the terminal. The
+// longest firmfact sends, in any of its languages, is "Componentes de
+// contrato".
+const maxRecordLabel = 24
+
+// maxChangedFields is how many changed fields a line names, as many as
+// the server sends; should it send more, the line says how many more.
+const maxChangedFields = 5
+
+// printRecords writes a line for each type of record: its label, the
+// rows of that type the file holds, and what publishing does with them.
+// The labels line up with the rest of the block's while they fit its
+// column, and the totals line up with each other.
+func printRecords(w io.Writer, records []upload.RecordCounts) {
+	labels := make([]string, len(records))
+	totals := make([]string, len(records))
+	labelCols, totalCols := labelWidth, 0
+	for i := range records {
+		labels[i] = cutCell(recordLabel(&records[i]), maxRecordLabel)
+		totals[i] = countText(records[i].Total)
+		labelCols = max(labelCols, ui.Columns(labels[i]))
+		totalCols = max(totalCols, ui.Columns(totals[i]))
+	}
+	for i := range records {
+		fmt.Fprintf(w, "  %-*s  %*s read%s\n", labelCols, labels[i], totalCols, totals[i], recordCounts(&records[i]))
+	}
+}
+
+// recordLabel is the label of a type of record, or its key in words when
+// the server sent none.
+func recordLabel(r *upload.RecordCounts) string {
+	if label := ui.SafeLine(strings.TrimSpace(r.Label)); label != "" {
+		return label
+	}
+	name := words(strings.TrimSpace(r.Type))
+	if name == "" {
+		return "Records"
+	}
+	first, size := utf8.DecodeRuneInString(name)
+	return string(unicode.ToUpper(first)) + name[size:]
+}
+
+// recordCounts is what follows "read" on a type's line: its counts that
+// are not zero, and the people the file no longer lists, who are not rows
+// of it.
+func recordCounts(r *upload.RecordCounts) string {
+	var parts []string
+	add := func(n int, text string) {
+		if n > 0 {
+			parts = append(parts, countText(n)+" "+text)
+		}
+	}
+	add(r.New, "new")
+	changed := "with changes"
+	if fields := changedFields(r.ChangedFields); fields != "" {
+		changed += " (" + fields + ")"
+	}
+	add(r.Changed, changed)
+	add(r.Unchanged, "unchanged")
+	add(r.Unmatched, "unmatched")
+	add(r.Skipped, "skipped")
+	add(r.Hidden, plural(r.Hidden, "matched to a record you cannot view", "matched to records you cannot view"))
+	add(r.NotInReview, "not on the review page")
+	text := ""
+	if len(parts) > 0 {
+		text = ": " + strings.Join(parts, ", ")
+	}
+	if r.Leavers > 0 {
+		text += "; " + countText(r.Leavers) + " no longer in the file"
+	}
+	return text
+}
+
+// changedFields lists the labels of the fields that changed, escaped, the
+// blank ones left out.
+func changedFields(fields []string) string {
+	var names []string
+	for _, f := range fields {
+		if name := ui.SafeLine(strings.TrimSpace(f)); name != "" {
+			names = append(names, name)
+		}
+	}
+	return someOf(names, maxChangedFields)
+}
+
+// countText is a count with its thousands grouped: 10,000.
+func countText(n int) string { return groupThousands(strconv.Itoa(n)) }
 
 // joinSome joins the parts that are not empty.
 func joinSome(sep string, parts ...string) string {

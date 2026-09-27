@@ -364,6 +364,27 @@ LSEG-2026-09.pdf: invoice, ready for review
 Nothing is booked until someone publishes it there.
 ```
 
+A spreadsheet or an HR file has a line for each type of record in it: how
+many rows of that type firmfact read, and how many of them publishing would
+add, change (with the fields that differ, the most frequent first), leave
+as they are, or leave for a person to match. Rows set aside on the review
+page, rows that match records you cannot view, and rows past those the
+review page shows (which publishing imports as they are) are counted too,
+when there are any, and so are the people in the workspace whom an HR file
+no longer lists. The type names are in your language, as firmfact shows
+them.
+
+```text
+HR-2026-09.xlsx: HR file, ready for review
+  Departments    12 read: 1 new, 1 with changes (Parent unit), 10 unchanged
+  Cost centres    8 read: 8 unchanged
+  People        250 read: 230 new, 15 with changes (Department, Cost centre), 5 unmatched; 3 no longer in the file
+  To review   An item (Jane Smith): choose which changes to apply.
+              An item (Robret Brown): confirm the suggested match or choose another.
+              and 6 more on the review page
+  Review      https://firmfact.com/accounts/.../documents/...
+```
+
 Name files, folders with `--recursive`, or patterns such as `'*.pdf'`,
 which the CLI expands where the shell did not (Windows shells expand none,
 and there a pattern ignores case, so `*.pdf` finds `SCAN001.PDF`). Hidden
@@ -418,10 +439,14 @@ it was not stored, and the `document` as firmfact describes it, in the
 schema `meta.schema` names (`document_result/1`). A file the CLI left out
 or refused without reading it has no `sha256`. `data.summary` counts the
 files by outcome and the documents by state, and `data.allowance` is the
-monthly allowance as it was before the upload.
+monthly allowance as it was before the upload. A spreadsheet's or an HR
+file's `document.read.records` has an entry for each type of record, with
+a `type` that stays the same in every language (such as `person`,
+`cost_centre` or `product`), its `label`, the `total` and each count.
 
 ```bash
 firmfact upload ~/Invoices/2026-09 -r --workspace Acme --jq '.data.results[] | [.path, .outcome, .document.state] | @tsv'
+firmfact upload HR-2026-09.xlsx --workspace Acme --jq '.data.results[].document.read.records[]? | [.type, .total, .new, .changed] | @tsv'
 ```
 
 The exit status says how it went: 0 when every file was uploaded or was

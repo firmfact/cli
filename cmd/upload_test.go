@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strconv"
 	"strings"
 	"testing"
@@ -95,6 +96,79 @@ func TestUploadShowsEachKindOfDocument(t *testing.T) {
 	assertGoldenFile(t, filepath.Join(uploadTestdata, "kinds.golden"), stdout)
 	if got := strings.Join(s.sentFiles(), " "); got != "BBG-88123.pdf BBG-Anywhere-2026.pdf scan-0034.pdf" {
 		t.Errorf("sent %s, one request each", got)
+	}
+}
+
+// An HR file and a spreadsheet of several types of record say, a line a
+// type, how many rows of it are new, changed and in which fields,
+// unchanged or waiting on a person; an invoice uploaded with them has no
+// such line.
+func TestUploadRecords(t *testing.T) {
+	isolate(t)
+	fastUploadPolls(t)
+	s := newUploadServer(t)
+	names := []string{"HR-2026-09.xlsx", "market-data-inventory.xlsx", "LSEG-2026-09.pdf"}
+	uploadDir(t, names...)
+
+	stdout, stderr, err := run("test", append([]string{"--host", s.URL(), "--workspace", "Acme", "upload"}, names...)...)
+	if err != nil {
+		t.Fatalf("upload: %v (stderr %q)", err, stderr)
+	}
+	assertGoldenFile(t, filepath.Join(uploadTestdata, "records.golden"), stdout)
+}
+
+// With --json, read.records is the server's as it came, with the fields
+// and counts this CLI does not know, and the README's --jq over it gives
+// a line a type; a document without it gives none.
+func TestUploadRecordsJSON(t *testing.T) {
+	isolate(t)
+	fastUploadPolls(t)
+	s := newUploadServer(t)
+	uploadDir(t, "market-data-inventory.xlsx")
+
+	stdout, stderr, err := run("test", "--host", s.URL(), "--workspace", "Acme", "--json", "upload", "market-data-inventory.xlsx")
+	if err != nil {
+		t.Fatalf("upload: %v (stderr %q)", err, stderr)
+	}
+	var got struct {
+		Data struct {
+			Results []struct {
+				Document struct {
+					Read struct {
+						Records []map[string]any
+					}
+				}
+			}
+		}
+	}
+	decodeOnly(t, "upload --json", stdout, &got)
+	var fixture struct {
+		Read struct {
+			Records []map[string]any
+		}
+	}
+	if err := json.Unmarshal([]byte(s.fixtures["market-data-inventory.xlsx"]), &fixture); err != nil {
+		t.Fatal(err)
+	}
+	if len(got.Data.Results) != 1 {
+		t.Fatalf("results = %+v", got.Data.Results)
+	}
+	records := got.Data.Results[0].Document.Read.Records
+	if !reflect.DeepEqual(records, fixture.Read.Records) {
+		t.Errorf("records = %v\nwant the server's %v", records, fixture.Read.Records)
+	}
+	if len(records) < 3 || records[2]["sheet"] != "Products" || records[2]["not_in_review"] != 1100.0 {
+		t.Errorf("the products lost what the server sent: %v", records)
+	}
+
+	uploadDir(t, "HR-2026-09.xlsx", "LSEG-2026-09.pdf")
+	stdout, stderr, err = run("test", "--host", s.URL(), "--workspace", "Acme", "upload", "HR-2026-09.xlsx", "LSEG-2026-09.pdf",
+		"--jq", ".data.results[].document.read.records[]? | [.type, .total, .new, .changed] | @tsv")
+	if err != nil {
+		t.Fatalf("upload --jq: %v (stderr %q)", err, stderr)
+	}
+	if want := "department\t12\t1\t1\ncost_centre\t8\t0\t0\nperson\t250\t230\t15\n"; stdout != want {
+		t.Errorf("--jq over the records gave %q, want %q", stdout, want)
 	}
 }
 

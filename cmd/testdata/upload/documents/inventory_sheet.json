@@ -1,0 +1,40 @@
+{
+  "id": "9f4d0e2a-3b5c-4d7e-8f90-1a2b3c4d5e60",
+  "state": "ready_for_review",
+  "url": "https://app.firmfact.example/accounts/1977ef5a-480b-4ea7-94ce-ce9fe4f308fd/documents/9f4d0e2a-3b5c-4d7e-8f90-1a2b3c4d5e60",
+  "own": true,
+  "filename": "market-data-inventory.xlsx",
+  "group_id": null,
+  "created_at": "2026-09-27T17:06:30Z",
+  "type": "spreadsheet",
+  "publishable": true,
+  "read": {
+    "type": "spreadsheet",
+    "records": [
+      {"type": "cost_centre", "label": "Cost centres", "total": 6, "new": 2, "changed": 0, "unchanged": 4, "unmatched": 0,
+       "changed_fields": []},
+      {"type": "vendor", "label": "Vendors", "total": 14, "new": 1, "changed": 2, "unchanged": 11, "unmatched": 0,
+       "changed_fields": ["Name", "Website"]},
+      {"type": "product", "label": "Products", "total": 1180, "new": 40, "changed": 12, "unchanged": 20, "unmatched": 8,
+       "not_in_review": 1100, "changed_fields": ["Unit price", "Currency", "Billing frequency", "Name", "Description"],
+       "sheet": "Products"},
+      {"type": "contract", "label": "Contracts", "total": 9, "new": 0, "changed": 1, "unchanged": 6, "unmatched": 0,
+       "hidden": 2, "changed_fields": ["End date"]},
+      {"type": "contract_item", "label": "Contract items", "total": 64, "new": 30, "changed": 0, "unchanged": 30,
+       "unmatched": 0, "skipped": 4, "changed_fields": []}
+    ]
+  },
+  "review": {
+    "url": "https://app.firmfact.example/accounts/1977ef5a-480b-4ea7-94ce-ce9fe4f308fd/documents/9f4d0e2a-3b5c-4d7e-8f90-1a2b3c4d5e60",
+    "counts": {"total": 193, "linked": 70, "ready": 73, "suggested": 8, "needs_review": 0, "blocked": 0, "updates": 15, "skipped": 4},
+    "items": [
+      {"node": "product-17", "kind": "other", "state": "suggested", "name": "Eikon Messenger",
+       "actions": ["confirm", "map_existing", "skip"],
+       "message": "An item (Eikon Messenger): confirm the suggested match or choose another."}
+    ],
+    "more_items": 7
+  },
+  "booked": false,
+  "error": null,
+  "notes": ["Nothing is booked until someone publishes it on the review page."]
+}

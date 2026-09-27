@@ -1,0 +1,37 @@
+Uploading to Acme: 3 new
+Allowance: 21 of 25 documents left this month (it resets on 1 Oct 2026).
+Waiting for 3 documents to be read (at most 15m)...
+
+HR-2026-09.xlsx: HR file, ready for review
+  Departments    12 read: 1 new, 1 with changes (Parent unit), 10 unchanged
+  Cost centres    8 read: 8 unchanged
+  People        250 read: 230 new, 15 with changes (Department, Cost centre), 5 unmatched; 3 no longer in the file
+  To review   An item (Jane Smith): choose which changes to apply.
+              An item (Robret Brown): confirm the suggested match or choose another.
+              and 6 more on the review page
+  Review      https://app.firmfact.example/accounts/1977ef5a-480b-4ea7-94ce-ce9fe4f308fd/documents/8e3b9c1d-2f4a-4b6c-9d8e-0a1b2c3d4e5f
+
+market-data-inventory.xlsx: spreadsheet, ready for review
+  Cost centres        6 read: 2 new, 4 unchanged
+  Vendors            14 read: 1 new, 2 with changes (Name, Website), 11 unchanged
+  Products        1,180 read: 40 new, 12 with changes (Unit price, Currency, Billing frequency, Name, Description), 20 unchanged, 8 unmatched, 1,100 not on the review page
+  Contracts           9 read: 1 with changes (End date), 6 unchanged, 2 matched to records you cannot view
+  Contract items     64 read: 30 new, 30 unchanged, 4 skipped
+  To review   An item (Eikon Messenger): confirm the suggested match or choose another.
+              and 7 more on the review page
+  Review      https://app.firmfact.example/accounts/1977ef5a-480b-4ea7-94ce-ce9fe4f308fd/documents/9f4d0e2a-3b5c-4d7e-8f90-1a2b3c4d5e60
+
+LSEG-2026-09.pdf: invoice, ready for review
+  Vendor      Refinitiv Limited, linked to LSEG
+  Entity      Acme Markets Ltd, not linked yet
+  Invoice     INV-8841207, 1 Sep 2026, due 1 Oct 2026; EUR 12,450.00
+  Contract    LSEG Workspace 2026 (C-0042), linked automatically (99%)
+  Variance    EUR 1,550.00 (14.2%) above the contract (preview)
+     1  Unit price 1,150.00 against 1,030.00 (+11.7%): +1,200.00
+     3  Not in the contract: +350.00
+  To review   Line 3 (Exchange fees): choose a contract item or skip it.
+              The legal entity (Acme Markets Ltd): link an existing record, create one or skip it.
+  Review      https://app.firmfact.example/accounts/1977ef5a-480b-4ea7-94ce-ce9fe4f308fd/documents/423a2262-85dd-4cf1-9b51-60c7bbf2ff7d
+
+3 uploaded: 3 ready for review.
+Nothing is booked until someone publishes it there.
