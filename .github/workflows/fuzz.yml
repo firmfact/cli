@@ -2,8 +2,9 @@ name: Fuzz
 
 # Go's fuzzer against the code that reads what reaches the CLI over the
 # network: a tool's answer, from its rows to the table, CSV and TSV they
-# print as (cmd/fuzz_test.go), and a release's version, checksums.txt and
-# archive (internal/update/fuzz_test.go). Thirty seconds each on a pull
+# print as (cmd/fuzz_test.go), a document an upload reads back, on its way
+# to the terminal (cmd/upload_document_test.go), and a release's version,
+# checksums.txt and archive (internal/update/fuzz_test.go). Thirty seconds each on a pull
 # request, to catch what a change breaks; ten minutes each every night, to
 # go deeper. `go test` in ci.yml already runs every seed and every input in
 # testdata/fuzz.
@@ -32,6 +33,7 @@ jobs:
         include:
           - { package: ./cmd, target: FuzzFindRows }
           - { package: ./cmd, target: FuzzColumnsFor }
+          - { package: ./cmd, target: FuzzDocumentBlock }
           - { package: ./internal/update, target: FuzzVersions }
           - { package: ./internal/update, target: FuzzChecksumFor }
           - { package: ./internal/update, target: FuzzExtract }

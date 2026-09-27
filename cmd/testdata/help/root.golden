@@ -17,6 +17,7 @@ Commands:
   signup              Create a firmfact account
   tools               List or refresh the workspace commands
   update              Update this CLI to the latest release
+  upload              Upload invoices, contracts and other documents for firmfact to read
   version             Show this CLI's version and build, and the latest release
   whoami              Show who you are signed in as
   workspaces          List workspaces, choose the default one or check on a setup

@@ -1,0 +1,43 @@
+{
+  "id": "5b0e6f1c-3d2a-4c8b-9e7f-1a2b3c4d5e6f",
+  "state": "ready_for_review",
+  "url": "https://app.firmfact.example/accounts/1977ef5a-480b-4ea7-94ce-ce9fe4f308fd/documents/5b0e6f1c-3d2a-4c8b-9e7f-1a2b3c4d5e6f",
+  "own": true,
+  "filename": "BBG-88123.pdf",
+  "group_id": null,
+  "created_at": "2026-09-27T17:02:11Z",
+  "type": "invoice",
+  "publishable": true,
+  "read": {
+    "type": "invoice",
+    "vendor": {"name": "Bloomberg Finance L.P.", "status": "linked", "linked_to": "Bloomberg Finance L.P."},
+    "legal_entity": {"name": "Acme Markets Ltd", "status": "linked", "linked_to": "Acme Markets Ltd"},
+    "number": "88123",
+    "dates": {"document": "2026-09-03", "due": "2026-10-03"},
+    "currency": "USD",
+    "amounts": {"subtotal": "9600.00", "tax": "0.00", "total": "9600.00"},
+    "checks": [{"code": "totals", "status": "pass", "message": "The line amounts add up to the amount stated on the document."}]
+  },
+  "contract_match": {
+    "status": "linked", "how": "automatic", "score": "1",
+    "contract": {"id": "7c1d2e3f-4a5b-4c6d-8e7f-9a0b1c2d3e4f", "number": "BBG-77812", "name": "Bloomberg Terminal 2026",
+                 "start": "2026-01-01", "end": "2026-12-31"}
+  },
+  "variance": {
+    "preview": true, "status": "none", "currency": "USD",
+    "amount": "0.00", "percent": "0.0", "invoiced": "9600.00", "contract": "9600.00",
+    "counts": {"lines": 6, "matched": 6, "clean": 6},
+    "summary": "None: every line matches BBG-77812",
+    "lines": []
+  },
+  "review": {
+    "url": "https://app.firmfact.example/accounts/1977ef5a-480b-4ea7-94ce-ce9fe4f308fd/documents/5b0e6f1c-3d2a-4c8b-9e7f-1a2b3c4d5e6f",
+    "counts": {"total": 9, "linked": 9, "ready": 0, "suggested": 0, "needs_review": 0, "blocked": 0, "updates": 0, "skipped": 0},
+    "items": [],
+    "more_items": 0,
+    "summary": "Nothing flagged; ready to publish."
+  },
+  "booked": false,
+  "error": null,
+  "notes": ["Nothing is booked until someone publishes it on the review page."]
+}

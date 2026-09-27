@@ -1,0 +1,38 @@
+{
+  "id": "6c1f7a2d-4e3b-4d9c-8f80-2b3c4d5e6f70",
+  "state": "ready_for_review",
+  "url": "https://app.firmfact.example/accounts/1977ef5a-480b-4ea7-94ce-ce9fe4f308fd/documents/6c1f7a2d-4e3b-4d9c-8f80-2b3c4d5e6f70",
+  "own": true,
+  "filename": "BBG-Anywhere-2026.pdf",
+  "group_id": null,
+  "created_at": "2026-09-27T17:03:40Z",
+  "type": "contract",
+  "publishable": true,
+  "read": {
+    "type": "contract",
+    "vendor": {"name": "Bloomberg Finance L.P.", "status": "linked", "linked_to": "Bloomberg Finance L.P."},
+    "number": "BBG-91020",
+    "dates": {"start": "2026-10-01", "end": "2027-09-30"},
+    "currency": "USD",
+    "amounts": {"total": "76800.00"},
+    "name": "Bloomberg Anywhere 2026",
+    "items": 2
+  },
+  "contract_match": {
+    "status": "existing",
+    "contract": {"id": "0d1e2f3a-4b5c-4d6e-8f70-8192a3b4c5d6", "number": "BBG-91020", "name": "Bloomberg Anywhere",
+                 "start": "2025-10-01", "end": "2026-09-30"},
+    "message": "Same number as BBG-91020: publishing updates it."
+  },
+  "variance": null,
+  "review": {
+    "url": "https://app.firmfact.example/accounts/1977ef5a-480b-4ea7-94ce-ce9fe4f308fd/documents/6c1f7a2d-4e3b-4d9c-8f80-2b3c4d5e6f70",
+    "counts": {"total": 4, "linked": 2, "ready": 0, "suggested": 0, "needs_review": 0, "blocked": 0, "updates": 2, "skipped": 0},
+    "items": [],
+    "more_items": 0,
+    "summary": "Nothing flagged; ready to publish."
+  },
+  "booked": false,
+  "error": null,
+  "notes": ["Nothing is booked until someone publishes it on the review page."]
+}

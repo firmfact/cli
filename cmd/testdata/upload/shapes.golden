@@ -1,0 +1,61 @@
+theirs.pdf: already in firmfact, uploaded by someone else; ready for review
+  Review      https://app.firmfact.example/accounts/1977ef5a-480b-4ea7-94ce-ce9fe4f308fd/documents/a1b2c3d4-0000-4000-8000-000000000001
+
+queued.pdf: being matched
+  Review      https://app.firmfact.example/accounts/1977ef5a-480b-4ea7-94ce-ce9fe4f308fd/documents/a1b2c3d4-0000-4000-8000-000000000002
+
+over-quota.pdf: skipped, as this month's allowance of documents was used up
+  This document was not processed because your workspace has reached its
+  monthly document limit.
+  Review      https://app.firmfact.example/accounts/1977ef5a-480b-4ea7-94ce-ce9fe4f308fd/documents/a1b2c3d4-0000-4000-8000-000000000003
+
+netting.csv: Bloomberg netting guidelines, ready for review
+  Note        Bloomberg's netting list was applied when it was processed. Exchanges on the list: 120.
+  Note        3 exchanges were delisted.
+  Note        1 exchange was overridden.
+  Review      https://app.firmfact.example/accounts/1977ef5a-480b-4ea7-94ce-ce9fe4f308fd/documents/a1b2c3d4-0000-4000-8000-000000000004
+
+EMDA-order-form.pdf: order form, ready for review
+  Vendor      Euronext, a match is suggested
+  Order form  EMDA-2026, from 1 Jan 2026, EUR -1,250.50, 1 item
+  Existing    matched to a contract you cannot view
+  To review   The review is not ready yet. Open the review page to finish preparing it.
+  Note        Order forms cannot be published yet, so this one stays on the review page for reference.
+  Review      https://app.firmfact.example/accounts/1977ef5a-480b-4ea7-94ce-ce9fe4f308fd/documents/a1b2c3d4-0000-4000-8000-000000000005
+
+FactSet-Q3.pdf: invoice, ready for review
+  Vendor      FactSet, new: publishing adds it
+  Entity      no name read, skipped
+  Invoice     not a date; 22,410.00
+  Contract    4 suggested: FactSet Workstation 2026 (FS-2026, 72%), FactSet Data Feeds (46%), FS-OLD (44%) and 1 more
+  Variance    No line is matched to a contract item yet, so there is nothing to compare.
+  Check       The line amounts add up to 22,400.00, against 22,410.00 stated on the document.
+  To review   The contract: choose one of the suggested contracts or skip it.
+              Line 1 (Workstation seats): choose a contract item or skip it.
+              Line 2 (Data feed): choose a contract item or skip it.
+              Line 3 (Support): choose a contract item or skip it.
+              Line 4 (Training): choose a contract item or skip it.
+              and 3 more on the review page
+  Review      https://app.firmfact.example/accounts/1977ef5a-480b-4ea7-94ce-ce9fe4f308fd/documents/a1b2c3d4-0000-4000-8000-000000000006
+
+chosen.pdf: invoice, published
+  Invoice     INV-1; GBP 1,234,567.89
+  Contract    C-7, linked on the review page
+  Variance    GBP 10.00 (0.1%) below the contract (preview)
+    12  Seats
+  To review   Nothing flagged; ready to publish.
+  Review      https://app.firmfact.example/accounts/1977ef5a-480b-4ea7-94ce-ce9fe4f308fd/documents/a1b2c3d4-0000-4000-8000-000000000007
+
+hidden.pdf: invoice, attached as a reference
+  Contract    matched to a contract you cannot view
+  Variance    matched to a contract you cannot view
+  Review      https://app.firmfact.example/accounts/1977ef5a-480b-4ea7-94ce-ce9fe4f308fd/documents/a1b2c3d4-0000-4000-8000-000000000008
+
+new-contract.pdf: invoice, ready for review
+  Contract    A new contract will be created from this invoice when it is published.
+  Review      https://app.firmfact.example/accounts/1977ef5a-480b-4ea7-94ce-ce9fe4f308fd/documents/a1b2c3d4-0000-4000-8000-000000000009
+
+none.pdf: vendor statement, some new state
+  Document    ST-9, 31 Aug 2026
+  Contract    none found
+  Review      https://app.firmfact.example/accounts/1977ef5a-480b-4ea7-94ce-ce9fe4f308fd/documents/a1b2c3d4-0000-4000-8000-00000000000a

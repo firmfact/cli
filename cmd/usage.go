@@ -36,8 +36,9 @@ func guardCommandLine(root *cobra.Command) {
 		return withExit(ExitUsage, err)
 	})
 	// A group is runnable now, only to refuse what follows it; its usage
-	// line should not suggest that it runs on its own.
-	root.SetUsageTemplate(strings.Replace(root.UsageTemplate(), "{{if .Runnable}}", "{{if and .Runnable (not .HasAvailableSubCommands)}}", 1))
+	// line should not suggest that it runs on its own. A command that runs
+	// and has commands below it, such as upload, keeps its line.
+	root.SetUsageTemplate(strings.Replace(root.UsageTemplate(), "{{if .Runnable}}", `{{if and .Runnable (not (index .Annotations "`+groupAnnotation+`"))}}`, 1))
 
 	var walk func(c *cobra.Command)
 	walk = func(c *cobra.Command) {

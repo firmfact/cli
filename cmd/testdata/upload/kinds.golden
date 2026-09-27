@@ -1,0 +1,27 @@
+Uploading to Acme: 3 new
+Allowance: 21 of 25 documents left this month (it resets on 1 Oct 2026).
+Waiting for 3 documents to be read (at most 15m)...
+
+BBG-88123.pdf: invoice, ready for review
+  Vendor      Bloomberg Finance L.P., linked
+  Entity      Acme Markets Ltd, linked
+  Invoice     88123, 3 Sep 2026, due 3 Oct 2026; USD 9,600.00
+  Contract    Bloomberg Terminal 2026 (BBG-77812), linked automatically (100%)
+  Variance    None: every line matches BBG-77812 (preview)
+  To review   Nothing flagged; ready to publish.
+  Review      https://app.firmfact.example/accounts/1977ef5a-480b-4ea7-94ce-ce9fe4f308fd/documents/5b0e6f1c-3d2a-4c8b-9e7f-1a2b3c4d5e6f
+
+BBG-Anywhere-2026.pdf: contract, ready for review
+  Vendor      Bloomberg Finance L.P., linked
+  Contract    BBG-91020, 1 Oct 2026 to 30 Sep 2027, USD 76,800.00, 2 items
+  Existing    Same number as BBG-91020: publishing updates it.
+  To review   Nothing flagged; ready to publish.
+  Review      https://app.firmfact.example/accounts/1977ef5a-480b-4ea7-94ce-ce9fe4f308fd/documents/6c1f7a2d-4e3b-4d9c-8f80-2b3c4d5e6f70
+
+scan-0034.pdf: could not be read
+  We could not extract data from this document. Check that the file is
+  complete and readable, then retry the upload.
+  Review      https://app.firmfact.example/accounts/1977ef5a-480b-4ea7-94ce-ce9fe4f308fd/documents/7d2a8b3e-5f4c-4e0d-9a91-3c4d5e6f7081
+
+3 uploaded: 2 ready for review, 1 could not be read.
+Nothing is booked until someone publishes it there.

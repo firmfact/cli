@@ -1,0 +1,11 @@
+ #  FILE                 AMOUNT            CONTRACT     VARIANCE  REVIEW
+ 1  theirs.pdf           -                 -            -         ready for review
+ 2  queued.pdf           -                 -            -         still being read
+ 3  over-quota.pdf       -                 -            -         over the allowance
+ 4  netting.csv          -                 -            -         applied when read
+ 5  EMDA-order-form.pdf  EUR -1,250.50     hidden       -         open to prepare
+ 6  FactSet-Q3.pdf       22,410.00         4 suggested  -         choose contract
+ 7  chosen.pdf           GBP 1,234,567.89  C-7, chosen  -         published
+ 8  hidden.pdf           -                 hidden       -         attached as a reference
+ 9  new-contract.pdf     -                 new          -         nothing flagged
+10  none.pdf             -                 none         -         some new state

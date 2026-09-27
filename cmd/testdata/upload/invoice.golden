@@ -1,0 +1,16 @@
+Uploading to Acme: 1 new
+Allowance: 21 of 25 documents left this month (it resets on 1 Oct 2026).
+Waiting for 1 document to be read (at most 15m)...
+
+LSEG-2026-09.pdf: invoice, ready for review
+  Vendor      Refinitiv Limited, linked to LSEG
+  Entity      Acme Markets Ltd, not linked yet
+  Invoice     INV-8841207, 1 Sep 2026, due 1 Oct 2026; EUR 12,450.00
+  Contract    LSEG Workspace 2026 (C-0042), linked automatically (99%)
+  Variance    EUR 1,550.00 (14.2%) above the contract (preview)
+     1  Unit price 1,150.00 against 1,030.00 (+11.7%): +1,200.00
+     3  Not in the contract: +350.00
+  To review   Line 3 (Exchange fees): choose a contract item or skip it.
+              The legal entity (Acme Markets Ltd): link an existing record, create one or skip it.
+  Review      https://app.firmfact.example/accounts/1977ef5a-480b-4ea7-94ce-ce9fe4f308fd/documents/423a2262-85dd-4cf1-9b51-60c7bbf2ff7d
+Nothing is booked until someone publishes it there.

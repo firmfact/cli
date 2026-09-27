@@ -1,0 +1,82 @@
+[
+  {"name": "theirs.pdf", "duplicate": true, "document": {
+    "id": "a1b2c3d4-0000-4000-8000-000000000001", "state": "ready_for_review",
+    "url": "https://app.firmfact.example/accounts/1977ef5a-480b-4ea7-94ce-ce9fe4f308fd/documents/a1b2c3d4-0000-4000-8000-000000000001",
+    "own": false}},
+  {"name": "queued.pdf", "document": {
+    "id": "a1b2c3d4-0000-4000-8000-000000000002", "state": "matching",
+    "url": "https://app.firmfact.example/accounts/1977ef5a-480b-4ea7-94ce-ce9fe4f308fd/documents/a1b2c3d4-0000-4000-8000-000000000002",
+    "own": true, "filename": "queued.pdf"}},
+  {"name": "over-quota.pdf", "document": {
+    "id": "a1b2c3d4-0000-4000-8000-000000000003", "state": "skipped", "reason": "over_quota",
+    "url": "https://app.firmfact.example/accounts/1977ef5a-480b-4ea7-94ce-ce9fe4f308fd/documents/a1b2c3d4-0000-4000-8000-000000000003",
+    "own": true, "filename": "over-quota.pdf", "type": null, "booked": false,
+    "error": {"code": "usage_limit_exceeded", "message": "This document was not processed because your workspace has reached its monthly document limit."}}},
+  {"name": "netting.csv", "document": {
+    "id": "a1b2c3d4-0000-4000-8000-000000000004", "state": "ready_for_review",
+    "url": "https://app.firmfact.example/accounts/1977ef5a-480b-4ea7-94ce-ce9fe4f308fd/documents/a1b2c3d4-0000-4000-8000-000000000004",
+    "own": true, "filename": "netting.csv", "type": "bloomberg_netting_guidelines", "publishable": false,
+    "read": {"type": "bloomberg_netting_guidelines", "applied": {"listed": 120, "delisted": 3, "overridden": 1}},
+    "booked": true,
+    "notes": ["Bloomberg's netting list was applied when it was processed. Exchanges on the list: 120.", "3 exchanges were delisted.", "1 exchange was overridden."]}},
+  {"name": "EMDA-order-form.pdf", "document": {
+    "id": "a1b2c3d4-0000-4000-8000-000000000005", "state": "ready_for_review",
+    "url": "https://app.firmfact.example/accounts/1977ef5a-480b-4ea7-94ce-ce9fe4f308fd/documents/a1b2c3d4-0000-4000-8000-000000000005",
+    "own": true, "filename": "EMDA-order-form.pdf", "type": "order_form", "publishable": false,
+    "read": {"type": "order_form", "vendor": {"name": "Euronext", "status": "suggested"}, "number": "EMDA-2026",
+             "dates": {"start": "2026-01-01"}, "currency": "EUR", "amounts": {"total": "-1250.5"}, "items": 1},
+    "contract_match": {"status": "existing", "visible": false, "message": "matched to a contract you cannot view"},
+    "review": {"analysis_pending": true, "message": "The review is not ready yet. Open the review page to finish preparing it."},
+    "booked": false,
+    "notes": ["Order forms cannot be published yet, so this one stays on the review page for reference.", "Nothing is booked until someone publishes it on the review page."]}},
+  {"name": "FactSet-Q3.pdf", "document": {
+    "id": "a1b2c3d4-0000-4000-8000-000000000006", "state": "ready_for_review",
+    "url": "https://app.firmfact.example/accounts/1977ef5a-480b-4ea7-94ce-ce9fe4f308fd/documents/a1b2c3d4-0000-4000-8000-000000000006",
+    "own": true, "filename": "FactSet-Q3.pdf", "type": "invoice",
+    "read": {"type": "invoice", "vendor": {"name": "FactSet", "status": "new"}, "legal_entity": {"status": "skipped"},
+             "dates": {"document": "not a date"}, "amounts": {"total": "22410"},
+             "checks": [{"code": "totals", "status": "fail", "stated": "22410.00", "computed": "22400.00",
+                         "message": "The line amounts add up to 22,400.00, against 22,410.00 stated on the document."}]},
+    "contract_match": {"status": "suggested", "suggestions": [
+      {"number": "FS-2026", "name": "FactSet Workstation 2026", "score": "0.72"},
+      {"name": "FactSet Data Feeds", "score": "0.46"},
+      {"number": "FS-OLD", "score": "0.44"},
+      {"id": "3c4d5e6f-7a8b-4c9d-8e0f-1a2b3c4d5e6f", "score": "0.41"}]},
+    "variance": {"preview": true, "status": "not_available", "reason": "no_match", "message": "No line is matched to a contract item yet, so there is nothing to compare."},
+    "review": {"items": [
+      {"message": "The contract: choose one of the suggested contracts or skip it."},
+      {"message": "Line 1 (Workstation seats): choose a contract item or skip it."},
+      {"message": "Line 2 (Data feed): choose a contract item or skip it."},
+      {"message": "Line 3 (Support): choose a contract item or skip it."},
+      {"message": "Line 4 (Training): choose a contract item or skip it."},
+      {"name": "Line 5 (Travel)"}], "more_items": 2},
+    "booked": false, "notes": ["Nothing is booked until someone publishes it on the review page."]}},
+  {"name": "chosen.pdf", "document": {
+    "id": "a1b2c3d4-0000-4000-8000-000000000007", "state": "published",
+    "url": "https://app.firmfact.example/accounts/1977ef5a-480b-4ea7-94ce-ce9fe4f308fd/documents/a1b2c3d4-0000-4000-8000-000000000007",
+    "own": true, "filename": "chosen.pdf", "type": "invoice",
+    "read": {"type": "invoice", "number": "INV-1", "currency": "GBP", "amounts": {"total": "1234567.891"}},
+    "contract_match": {"status": "linked", "how": "chosen", "contract": {"number": "C-7"}},
+    "variance": {"preview": true, "status": "variance", "summary": "GBP 10.00 (0.1%) below the contract",
+                 "lines": [{"line": 12, "description": "Seats"}]},
+    "review": {"items": [], "summary": "Nothing flagged; ready to publish."},
+    "booked": true, "notes": []}},
+  {"name": "hidden.pdf", "document": {
+    "id": "a1b2c3d4-0000-4000-8000-000000000008", "state": "attached",
+    "url": "https://app.firmfact.example/accounts/1977ef5a-480b-4ea7-94ce-ce9fe4f308fd/documents/a1b2c3d4-0000-4000-8000-000000000008",
+    "own": true, "filename": "hidden.pdf", "type": "invoice",
+    "contract_match": {"status": "linked", "how": "automatic", "visible": false, "message": "matched to a contract you cannot view"},
+    "variance": {"preview": true, "status": "not_available", "reason": "hidden_contract", "message": "matched to a contract you cannot view"}}},
+  {"name": "new-contract.pdf", "document": {
+    "id": "a1b2c3d4-0000-4000-8000-000000000009", "state": "ready_for_review",
+    "url": "https://app.firmfact.example/accounts/1977ef5a-480b-4ea7-94ce-ce9fe4f308fd/documents/a1b2c3d4-0000-4000-8000-000000000009",
+    "own": true, "filename": "new-contract.pdf", "type": "invoice",
+    "contract_match": {"status": "new", "message": "A new contract will be created from this invoice when it is published."},
+    "review": {"counts": {"total": 3, "linked": 0, "ready": 3, "suggested": 0, "needs_review": 0, "blocked": 0, "updates": 0, "skipped": 0}, "items": []}}},
+  {"name": "none.pdf", "document": {
+    "id": "a1b2c3d4-0000-4000-8000-00000000000a", "state": "some_new_state",
+    "url": "https://app.firmfact.example/accounts/1977ef5a-480b-4ea7-94ce-ce9fe4f308fd/documents/a1b2c3d4-0000-4000-8000-00000000000a",
+    "own": true, "filename": "none.pdf", "type": "vendor_statement",
+    "read": {"type": "vendor_statement", "number": "ST-9", "dates": {"document": "2026-08-31"}},
+    "contract_match": {"status": "none"}}}
+]

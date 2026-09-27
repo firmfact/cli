@@ -1,0 +1,38 @@
+{
+  "id": "8e3b9c4f-6a5d-4f1e-8ba2-4d5e6f708192",
+  "state": "ready_for_review",
+  "url": "https://app.firmfact.example/accounts/1977ef5a-480b-4ea7-94ce-ce9fe4f308fd/documents/8e3b9c4f-6a5d-4f1e-8ba2-4d5e6f708192",
+  "own": true,
+  "filename": "FactSet-Q3.pdf",
+  "group_id": null,
+  "created_at": "2026-09-27T17:05:12Z",
+  "type": "invoice",
+  "publishable": true,
+  "read": {
+    "type": "invoice",
+    "vendor": {"name": "FactSet Research Systems", "status": "linked", "linked_to": "FactSet"},
+    "number": "FS-2026-Q3-118",
+    "dates": {"document": "2026-09-15", "due": "2026-10-15"},
+    "currency": "USD",
+    "amounts": {"total": "22410.00"}
+  },
+  "contract_match": {
+    "status": "suggested",
+    "suggestions": [
+      {"id": "1a2b3c4d-5e6f-4a7b-8c9d-0e1f2a3b4c5d", "number": "FS-2026", "name": "FactSet Workstation 2026", "score": "0.72"},
+      {"id": "2b3c4d5e-6f7a-4b8c-9d0e-1f2a3b4c5d6e", "number": "FS-DATA-7", "name": "FactSet Data Feeds", "score": "0.46"}
+    ]
+  },
+  "variance": {"preview": true, "status": "not_available", "reason": "no_match", "message": "No line is matched to a contract item yet, so there is nothing to compare."},
+  "review": {
+    "url": "https://app.firmfact.example/accounts/1977ef5a-480b-4ea7-94ce-ce9fe4f308fd/documents/8e3b9c4f-6a5d-4f1e-8ba2-4d5e6f708192",
+    "counts": {"total": 5, "linked": 1, "ready": 0, "suggested": 0, "needs_review": 4, "blocked": 0, "updates": 0, "skipped": 0},
+    "items": [
+      {"node": "invoice-contract", "kind": "contract", "state": "unresolved", "message": "The contract: choose one of the suggested contracts or skip it."}
+    ],
+    "more_items": 3
+  },
+  "booked": false,
+  "error": null,
+  "notes": ["Nothing is booked until someone publishes it on the review page."]
+}

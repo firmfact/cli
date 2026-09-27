@@ -1,0 +1,15 @@
+Uploading to Acme: 4 new, 1 already in firmfact
+  Left out, as firmfact does not read files of their type: notes.exe
+  Left out 1 hidden file
+Allowance: 21 of 25 documents left this month (it resets on 1 Oct 2026).
+Waiting for 4 documents to be read (at most 15m)...
+
+ #  FILE                   AMOUNT         CONTRACT           VARIANCE   REVIEW
+ 1  BBG-88123.pdf          USD 9,600.00   BBG-77812, auto    none       nothing flagged
+ 2  BBG-Anywhere-2026.pdf  USD 76,800.00  updates BBG-91020  -          nothing flagged
+ 3  LSEG-2026-09.pdf       EUR 12,450.00  C-0042, auto       +1,550.00  2 items
+ 4  FactSet-Q3.pdf         USD 22,410.00  2 suggested        -          choose contract
+ 5  scan-0034.pdf          -              -                  -          could not be read
+4 uploaded, 1 already in firmfact, 1 left out: 4 ready for review, 1 could not be read.
+Review them at https://app.firmfact.example/accounts/1977ef5a-480b-4ea7-94ce-ce9fe4f308fd/documents
+Nothing is booked until someone publishes it there.

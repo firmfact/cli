@@ -1,0 +1,66 @@
+{
+  "id": "423a2262-85dd-4cf1-9b51-60c7bbf2ff7d",
+  "state": "ready_for_review",
+  "url": "https://app.firmfact.example/accounts/1977ef5a-480b-4ea7-94ce-ce9fe4f308fd/documents/423a2262-85dd-4cf1-9b51-60c7bbf2ff7d",
+  "own": true,
+  "filename": "LSEG-2026-09.pdf",
+  "group_id": null,
+  "created_at": "2026-09-27T16:59:48Z",
+  "type": "invoice",
+  "publishable": true,
+  "read": {
+    "type": "invoice",
+    "vendor": {"name": "Refinitiv Limited", "status": "linked", "linked_to": "LSEG"},
+    "legal_entity": {"name": "Acme Markets Ltd", "status": "unresolved"},
+    "number": "INV-8841207",
+    "dates": {"document": "2026-09-01", "due": "2026-10-01"},
+    "currency": "EUR",
+    "amounts": {"subtotal": "12450.00", "tax": "0.00", "total": "12450.00"},
+    "checks": [{"code": "totals", "status": "pass", "message": "The line amounts add up to the amount stated on the document."}],
+    "lines": [
+      {"number": 1, "description": "Workspace Pro Licence, September 2026", "quantity": "10", "unit_price": "1150.00",
+       "amount": "11500.00", "currency": "EUR", "period": {"start": "2026-09-01", "end": "2026-09-30"},
+       "item": {"status": "matched", "id": "c9d8ecf0-2b1e-4f7a-9d61-2f4c8e0a1b22", "name": "Workspace Pro Licence"}},
+      {"number": 2, "description": "Real-Time Exchange Fees, September 2026", "quantity": "1", "unit_price": "600.00",
+       "amount": "600.00", "currency": "EUR",
+       "item": {"status": "matched", "id": "db64ade9-7c3f-4a1e-8b90-5e2d1c3f4a55", "name": "Real-Time Exchange Fees"}},
+      {"number": 3, "description": "Exchange fees", "quantity": "1", "unit_price": "350.00", "amount": "350.00", "currency": "EUR",
+       "item": {"status": "unmatched"}}
+    ]
+  },
+  "contract_match": {
+    "status": "linked", "how": "automatic", "score": "0.99", "runner_up_score": "0.41",
+    "contract": {"id": "9283ed40-1f2e-4d3c-8b7a-6e5f4d3c2b1a", "number": "C-0042", "name": "LSEG Workspace 2026",
+                 "start": "2026-01-01", "end": "2026-12-31"}
+  },
+  "variance": {
+    "preview": true, "status": "variance", "currency": "EUR",
+    "amount": "1550.00", "percent": "14.2", "invoiced": "12450.00", "contract": "10900.00",
+    "counts": {"lines": 3, "matched": 2, "clean": 1},
+    "summary": "EUR 1,550.00 (14.2%) above the contract",
+    "lines": [
+      {"line": 1, "description": "Workspace Pro Licence, September 2026", "match": "linked", "status": "variance",
+       "amount": "1200.00", "driver": "unit_price", "invoiced": "1150.00", "contract": "1030.00",
+       "item": {"id": "c9d8ecf0-2b1e-4f7a-9d61-2f4c8e0a1b22", "name": "Workspace Pro Licence"},
+       "message": "Unit price 1,150.00 against 1,030.00 (+11.7%): +1,200.00"},
+      {"line": 3, "description": "Exchange fees", "status": "unmatched", "amount": "350.00",
+       "message": "Not in the contract: +350.00"}
+    ]
+  },
+  "review": {
+    "url": "https://app.firmfact.example/accounts/1977ef5a-480b-4ea7-94ce-ce9fe4f308fd/documents/423a2262-85dd-4cf1-9b51-60c7bbf2ff7d",
+    "counts": {"total": 8, "linked": 6, "ready": 0, "suggested": 0, "needs_review": 2, "blocked": 0, "updates": 0, "skipped": 0},
+    "items": [
+      {"node": "li-2", "kind": "invoice_line", "state": "unresolved", "line": 3, "name": "Exchange fees",
+       "actions": ["map_existing", "skip"], "message": "Line 3 (Exchange fees): choose a contract item or skip it."},
+      {"node": "legal-entity-placeholder", "kind": "legal_entity", "state": "unresolved", "name": "Acme Markets Ltd",
+       "actions": ["map_existing", "create_new", "skip"],
+       "message": "The legal entity (Acme Markets Ltd): link an existing record, create one or skip it."}
+    ],
+    "more_items": 0
+  },
+  "booked": false,
+  "error": null,
+  "notes": ["Nothing is booked until someone publishes it on the review page."],
+  "approvals": {"required": 2, "given": 0}
+}

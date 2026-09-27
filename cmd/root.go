@@ -755,6 +755,7 @@ func newRootCommand(name string, b Build, args []string, streams IOStreams, with
 		newToolsCommand(app),
 		newCallCommand(app),
 		newAskCommand(app),
+		newUploadCommand(app),
 		newConfigCommand(app),
 		newUpdateCommand(app),
 		newVersionCommand(app),
