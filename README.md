@@ -414,7 +414,9 @@ At a terminal, an invoice whose preview shows a variance ends the results
 with the commands that follow it up, as above: its review page, the
 contract item of the line that differs most, and how the vendor's costs
 moved month by month. A batch gets them for its first invoice with a
-variance, and a count of the others. Scripts and `--json` get none.
+variance, and a count of the others; with `--fail-on-variance`, for its
+first invoice over the threshold, when there is one. Scripts and `--json`
+get none.
 
 A spreadsheet or an HR file has a line for each type of record in it: how
 many rows of that type firmfact read, how many of them publishing would

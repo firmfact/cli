@@ -236,3 +236,40 @@ func TestUploadShowsVarianceStepsForTheFirstOfABatch(t *testing.T) {
 		t.Errorf("the terminal showed\n%s\nwant it to end with\n%s", shown, want)
 	}
 }
+
+// With --fail-on-variance, the steps follow the first invoice over the
+// threshold, which failed the upload, not an invoice within it that comes
+// first, and count the others over it.
+func TestUploadShowsVarianceStepsForTheFirstOverTheThreshold(t *testing.T) {
+	isolate(t)
+	fastUploadPolls(t)
+	t.Setenv("TERM", "dumb")
+	t.Setenv("NO_COLOR", "1")
+	s := newUploadServer(t)
+	const augustID = "4d0c9b8a-7f6e-4d5c-8b4a-3f2e1d0c9b8a"
+	s.fixtures["LSEG-2026-08.pdf"] = strings.NewReplacer(
+		"423a2262-85dd-4cf1-9b51-60c7bbf2ff7d", augustID, "LSEG-2026-09.pdf", "LSEG-2026-08.pdf",
+		`"amount": "1550.00", "percent": "14.2"`, `"amount": "150.00", "percent": "1.4"`,
+	).Replace(s.fixtures["LSEG-2026-09.pdf"])
+	onServerHost(s)
+	if err := saveToolCache(s.URL(), serverTools(t)); err != nil {
+		t.Fatal(err)
+	}
+	names := []string{"LSEG-2026-08.pdf", "LSEG-2026-09.pdf"}
+	uploadDir(t, names...)
+
+	tty, shown := terminal(t, 100)
+	args := append([]string{"--host", s.URL(), "--workspace", "Acme", "upload", "--fail-on-variance=2%"}, names...)
+	err := NewRootCommand(Build{Version: "test"}, args, IOStreams{In: tty, Out: tty, Err: io.Discard}).Execute()
+	if exitCode(err) != ExitVariance {
+		t.Fatalf("upload: %v, status %d; want %d", err, exitCode(err), ExitVariance)
+	}
+	_, steps, ok := strings.Cut(shown(), "Nothing is booked until someone publishes it there.\n\n")
+	want := "Next steps for LSEG-2026-09.pdf, EUR 1,550.00 (14.2%) above the contract:\n" +
+		"  firmfact open " + s.URL() + "/accounts/" + acmeID + "/documents/423a2262-85dd-4cf1-9b51-60c7bbf2ff7d  (go through the variance on its review page)\n" +
+		`  firmfact contract-items list --query "Workspace Pro Licence" --workspace Acme  (the contract item line 1 is compared with)` + "\n" +
+		"  firmfact analyze cost-trends --entity-type vendor --entity-name LSEG --monthly --workspace Acme  (the vendor's costs, month by month)\n"
+	if !ok || steps != want {
+		t.Errorf("the terminal showed\n%s\nwant it to end with\n%s", steps, want)
+	}
+}

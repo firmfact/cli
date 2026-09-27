@@ -62,6 +62,8 @@ change with it, so they are not listed here.
   commands that follow it up: `open` with its review link,
   `contract-items list` for the contract item of the line that differs
   most, and `analyze cost-trends` for the vendor's costs month by month.
+  With `--fail-on-variance`, they follow the first invoice over the
+  threshold.
 - `--fail-on-variance` on `upload` and `upload status`, for pipelines: once
   firmfact has read the documents, the command exits with status 9
   (`variance_exceeded`) when an invoice is further from its contract than

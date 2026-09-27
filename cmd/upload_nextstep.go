@@ -13,9 +13,12 @@ import (
 // After an upload, the next steps follow up the first invoice whose
 // preview shows a variance: its review page, the contract item of the line
 // that differs most, and the vendor's costs month by month. A batch gets
-// the steps for one invoice, and a count of the others. Like every next
-// step, they are for a person at a terminal (see printNextStep), and each
-// needs the tool it runs to be on offer.
+// the steps for one invoice, and a count of the others. With
+// --fail-on-variance, that is the first invoice over its threshold, when
+// there is one: the steps then follow up what failed the command, not an
+// invoice within the threshold before it. Like every next step, they are
+// for a person at a terminal (see printNextStep), and each needs the tool
+// it runs to be on offer.
 //
 // The steps are made of what the server sent, so each value is escaped,
 // and must stand as one word on any shell's command line (see shellWord).
@@ -28,22 +31,25 @@ func (r *uploadRun) printVarianceSteps() {
 	if !r.app.attended() {
 		return
 	}
-	doc, name, others := r.firstVariance()
-	if doc == nil {
+	v := r.firstVariance()
+	if v.doc == nil {
 		return
 	}
-	steps := r.varianceSteps(doc)
+	steps := r.varianceSteps(v.doc)
 	if len(steps) == 0 {
 		return
 	}
-	head := plural(len(steps), "Next step", "Next steps") + " for " + name + ", " + varianceWords(doc.Variance)
+	head := plural(len(steps), "Next step", "Next steps") + " for " + v.name + ", " + v.words
 	m := r.app.Mode()
 	fmt.Fprintf(r.out, "\n%s\n", m.Dim(head+":"))
 	for _, s := range steps {
 		fmt.Fprintf(r.out, "  %s  %s\n", m.Orange(r.app.Name+" "+s.command), m.Dim("("+s.why+")"))
 	}
-	if others > 0 {
-		fmt.Fprintf(r.out, "%d more %s a variance too.\n", others, plural(others, "invoice shows", "invoices show"))
+	switch {
+	case v.others > 0 && v.over:
+		fmt.Fprintf(r.out, "%d more %s over the threshold too.\n", v.others, plural(v.others, "invoice is", "invoices are"))
+	case v.others > 0:
+		fmt.Fprintf(r.out, "%d more %s a variance too.\n", v.others, plural(v.others, "invoice shows", "invoices show"))
 	}
 }
 
@@ -70,10 +76,27 @@ func varianceWords(v *upload.Variance) string {
 	return text + direction
 }
 
+// followedVariance is the invoice the next steps follow up.
+type followedVariance struct {
+	doc  *upload.Document
+	name string
+	// words say how far it is from its contract, for the heading.
+	words string
+	// over is set when it is over --fail-on-variance's threshold; others
+	// is then how many more invoices are, and otherwise how many more
+	// show a variance.
+	over   bool
+	others int
+}
+
 // firstVariance is the first document of the upload, in the order of the
 // command line, whose preview shows a variance, with the name of its file,
-// and how many other documents show one.
-func (r *uploadRun) firstVariance() (doc *upload.Document, name string, others int) {
+// and how many other documents show one. With --fail-on-variance, it is
+// the first over the threshold, when there is one, said as the error says
+// it (see varianceGate.measureWords), and others counts those over it.
+func (r *uploadRun) firstVariance() followedVariance {
+	var shown, over []followedVariance
+	gate := r.flags.failOnVariance
 	seen := map[string]bool{}
 	for _, f := range r.files {
 		d := f.doc
@@ -81,13 +104,24 @@ func (r *uploadRun) firstVariance() (doc *upload.Document, name string, others i
 			continue
 		}
 		seen[d.ID] = true
-		if doc == nil {
-			doc, name = d, f.label()
+		shown = append(shown, followedVariance{doc: d, name: f.label(), words: varianceWords(d.Variance)})
+		if !gate.on {
 			continue
 		}
-		others++
+		if c := checkVariance(gate.threshold, d); c.verdict == varianceOver {
+			g := varianceGate{threshold: gate.threshold}
+			over = append(over, followedVariance{doc: d, name: f.label(), words: g.measureWords(d.Variance.Currency, c.measure), over: true})
+		}
 	}
-	return doc, name, others
+	if len(over) > 0 {
+		shown = over
+	}
+	if len(shown) == 0 {
+		return followedVariance{}
+	}
+	first := shown[0]
+	first.others = len(shown) - 1
+	return first
 }
 
 // varianceSteps are the next steps for doc, an invoice whose preview shows

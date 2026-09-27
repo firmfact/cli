@@ -227,13 +227,59 @@ func TestFirstVariance(t *testing.T) {
 		{name: "copy.pdf", doc: lseg},
 		{name: "LSEG-2026-10.pdf", doc: later},
 	}}
-	doc, name, others := r.firstVariance()
-	if doc != lseg || name != "LSEG-2026-09.pdf" || others != 1 {
-		t.Errorf("firstVariance = %v, %q, %d; want the LSEG invoice and 1 other", doc != nil, name, others)
+	v := r.firstVariance()
+	if v.doc != lseg || v.name != "LSEG-2026-09.pdf" || v.others != 1 || v.over {
+		t.Errorf("firstVariance = %v, %q, %d, over %v; want the LSEG invoice and 1 other", v.doc != nil, v.name, v.others, v.over)
+	}
+	if want := "EUR 1,550.00 (14.2%) above the contract"; v.words != want {
+		t.Errorf("words = %q, want %q", v.words, want)
 	}
 	r.files = r.files[:3]
-	if doc, _, _ := r.firstVariance(); doc != nil {
-		t.Errorf("firstVariance found %s among invoices without a variance", doc.ID)
+	if v := r.firstVariance(); v.doc != nil {
+		t.Errorf("firstVariance found %s among invoices without a variance", v.doc.ID)
+	}
+}
+
+// With --fail-on-variance, the steps follow the first invoice over the
+// threshold, which failed the command, rather than one within it that
+// comes before it, and count the others over it; its variance is said as
+// the error says it, to as many decimals as it takes to be over. With no
+// invoice over, they follow the first with a variance, as without the
+// flag.
+func TestFirstVarianceOverTheThreshold(t *testing.T) {
+	within := lsegInvoice(t, fixtureHost)
+	within.ID, within.Variance.Amount, within.Variance.Percent = "within", "150.00", "1.4"
+	near := lsegInvoice(t, fixtureHost)
+	near.ID, near.Variance.Amount, near.Variance.Percent, near.Variance.Contract = "near", "-204.00", "2.0", "10000.00"
+	lseg := lsegInvoice(t, fixtureHost)
+	r := &uploadRun{files: []*uploadFile{
+		{name: "within.pdf", doc: within},
+		{name: "near.pdf", doc: near},
+		{name: "LSEG-2026-09.pdf", doc: lseg},
+	}}
+	gate := func(threshold string) {
+		t.Helper()
+		if err := r.flags.failOnVariance.Set(threshold); err != nil {
+			t.Fatal(err)
+		}
+	}
+	cases := []struct {
+		threshold, name, words string
+		others                 int
+		over                   bool
+	}{
+		{"2%", "near.pdf", "EUR 204.00 (2.04%) below the contract", 1, true},
+		{"5%", "LSEG-2026-09.pdf", "EUR 1,550.00 (14.2%) above the contract", 0, true},
+		{"any", "within.pdf", "EUR 150.00 (1.4%) above the contract", 2, true},
+		{"15%", "within.pdf", "EUR 150.00 (1.4%) above the contract", 2, false},
+	}
+	for _, c := range cases {
+		gate(c.threshold)
+		v := r.firstVariance()
+		if v.name != c.name || v.words != c.words || v.others != c.others || v.over != c.over {
+			t.Errorf("--fail-on-variance=%s: %q, %q, %d others, over %v; want %q, %q, %d, %v",
+				c.threshold, v.name, v.words, v.others, v.over, c.name, c.words, c.others, c.over)
+		}
 	}
 }
 
