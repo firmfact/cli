@@ -253,6 +253,8 @@ type uploadRun struct {
 	// sendTotal and sendDone count the files to send and those sent, for
 	// the live line.
 	sendTotal, sendDone int
+	// asked is set once confirm has had its say, before the first request.
+	asked bool
 
 	out      io.Writer // results: stdout
 	progress io.Writer // the plan's wait messages: stdout, or stderr with --json

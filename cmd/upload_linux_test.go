@@ -2,9 +2,13 @@ package cmd
 
 import (
 	"bytes"
+	"fmt"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/firmfact/cli/internal/upload"
 )
 
 // At a terminal, an upload that would go to a Demo workspace nobody named
@@ -53,6 +57,49 @@ func TestUploadAsksBeforeDemo(t *testing.T) {
 		if _, uploads := s.counts(); uploads != c.uploads {
 			t.Errorf("answer %s: %d uploads", c.answer, uploads)
 		}
+	}
+}
+
+// The question comes before the first file is sent, also when the files
+// of the first preflight are all in the workspace already and the first
+// one to send is in the next.
+func TestUploadAsksBeforeDemoPastAFullFirstPreflight(t *testing.T) {
+	isolate(t)
+	fastUploadPolls(t)
+	t.Setenv("TERM", "dumb")
+	t.Setenv("NO_COLOR", "1")
+	s := newUploadServer(t)
+	s.workspace = `{"id":"` + demoID + `","name":"Demo","demo":true}`
+	s.remaining = 200
+	var names []string
+	for i := range upload.MaxPreflightFiles + 1 {
+		names = append(names, fmt.Sprintf("invoices/%03d.pdf", i))
+	}
+	uploadDir(t, names...)
+	for _, name := range names[:upload.MaxPreflightFiles] {
+		s.has(filepath.Base(name), content(name))
+	}
+
+	ty, tty := newTypist(t)
+	var errOut bytes.Buffer
+	done := make(chan error, 1)
+	go func() {
+		done <- NewRootCommand(Build{Version: "test"}, []string{"--host", s.URL(), "upload", "invoices", "-r"},
+			IOStreams{In: tty, Out: tty, Err: &errOut}).Execute()
+	}()
+	ty.answer("Upload to Demo all the same? (y/N): ", "n")
+	select {
+	case err := <-done:
+		if err != nil {
+			t.Errorf("%v (%s)", err, errOut.String())
+		}
+	case <-time.After(10 * time.Second):
+		t.Fatal("the upload did not finish")
+	}
+	tty.Close()
+	<-ty.closed
+	if preflights, uploads := s.counts(); preflights != 2 || uploads != 0 {
+		t.Errorf("%d preflights, %d uploads; want 2 and none", preflights, uploads)
 	}
 }
 

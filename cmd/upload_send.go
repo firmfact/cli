@@ -144,7 +144,10 @@ func (r *uploadRun) send(ctx context.Context) error {
 		if !r.app.JSONOutput {
 			r.printPlan(chunk, groups, i, total)
 		}
-		if i == 0 {
+		// The question comes before the first request, which need not be
+		// among the first preflight's files: those may all be there already.
+		if !r.asked && len(groups) > 0 {
+			r.asked = true
 			if err := r.confirm(ctx, groups); err != nil {
 				return err
 			}
