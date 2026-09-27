@@ -146,10 +146,17 @@ func updateStates(docs []*upload.Document, list *upload.DocumentList) {
 	for _, d := range docs {
 		if got, ok := byID[d.ID]; ok {
 			*d = got
-			continue
 		}
-		for _, id := range list.Missing {
-			if id == d.ID {
+	}
+	markMissing(docs, list.Missing)
+}
+
+// markMissing marks the documents of docs whose ids a read listed as
+// missing: the workspace no longer has them.
+func markMissing(docs []*upload.Document, missing []string) {
+	for _, id := range missing {
+		for _, d := range docs {
+			if d.ID == id {
 				d.State = stateMissing
 			}
 		}
@@ -169,7 +176,10 @@ const fullReadAttempts = 3
 // readResults reads back, in full, the documents of docs that are the
 // caller's own and finished: what was read, the contract match, the
 // variance preview and what needs review. Someone else's document is its
-// state and link only, which docs has already. It returns the schema the
+// state and link only, which docs has already. A document deleted since
+// the wait is marked missing, as the wait marks one, rather than left as
+// the state it had: a finished document with nothing read from it would
+// pass for one there is nothing to check. It returns the schema the
 // server named; after an error, the documents read before it are in docs.
 func readResults(ctx context.Context, uc *upload.Client, workspace string, docs []*upload.Document) (schema string, err error) {
 	var ids []string
@@ -195,6 +205,7 @@ func readResults(ctx context.Context, uc *upload.Client, workspace string, docs 
 				*d = got
 			}
 		}
+		markMissing(docs, list.Missing)
 	}
 	return schema, nil
 }

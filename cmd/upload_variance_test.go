@@ -3,7 +3,9 @@ package cmd
 import (
 	"bytes"
 	"math/big"
+	"net/http"
 	"strings"
+	"sync/atomic"
 	"testing"
 
 	"github.com/firmfact/cli/internal/upload"
@@ -267,6 +269,82 @@ func TestFailOnVarianceUnchecked(t *testing.T) {
 		decodeOnly(t, "upload --json", stdout, &got)
 		if strings.Join(got.Meta.VarianceUnchecked, " ") != "bare.pdf" || strings.Join(got.Meta.VarianceExceeded, " ") != "LSEG-2026-09.pdf" {
 			t.Errorf("meta = %+v", got.Meta)
+		}
+	})
+}
+
+// afterTheWait makes s answer a full read of documents, once a read of
+// their states has shown them, with answer: what the read after the wait
+// finds when a document went back to being read, or was deleted, in
+// between.
+func afterTheWait(s *uploadServer, answer func(ids []string) (results []map[string]any, missing []string)) {
+	var waited atomic.Bool
+	s.anyHook = func(w http.ResponseWriter, r *http.Request) bool {
+		q := r.URL.Query()
+		switch {
+		case r.Method != http.MethodGet || q.Get("ids") == "":
+			return false
+		case q.Get("view") == "state":
+			waited.Store(true)
+			return false
+		case !waited.Load():
+			return false
+		}
+		results, missing := answer(strings.Split(q.Get("ids"), ","))
+		answerJSON(w, http.StatusOK, encode(map[string]any{"success": true,
+			"data": map[string]any{"results": results, "missing": missing}, "meta": map[string]any{"schema": "document_result/1"}}))
+		return true
+	}
+}
+
+// A document that went back to being read after the wait, or was deleted
+// in the meantime, was never checked, so the pipeline does not pass it:
+// the first ends the command with 5, as a wait that ran out does, and the
+// second with 1, as a document that could not be read does. Neither is
+// said to have run out of time.
+func TestFailOnVarianceAfterTheWait(t *testing.T) {
+	isolate(t)
+	fastUploadPolls(t)
+	uploadDir(t, "LSEG-2026-09.pdf")
+	const lseg = "423a2262-85dd-4cf1-9b51-60c7bbf2ff7d"
+	backToReading := func(ids []string) ([]map[string]any, []string) {
+		var results []map[string]any
+		for _, id := range ids {
+			results = append(results, map[string]any{"id": id, "state": "matching", "own": true, "filename": "LSEG-2026-09.pdf"})
+		}
+		return results, []string{}
+	}
+	deleted := func(ids []string) ([]map[string]any, []string) { return []map[string]any{}, ids }
+
+	for _, c := range []struct {
+		name   string
+		answer func([]string) ([]map[string]any, []string)
+		code   int
+		want   string
+	}{
+		{"back to being read", backToReading, ExitUnavailable,
+			"1 document was still being read; check with `firmfact upload status --workspace " + acmeID + " " + lseg + "`"},
+		{"deleted", deleted, ExitFailed, "1 document could not be read"},
+	} {
+		t.Run("upload, "+c.name, func(t *testing.T) {
+			s := newUploadServer(t)
+			afterTheWait(s, c.answer)
+			code, msg := uploadGated(t, s, "LSEG-2026-09.pdf", "--fail-on-variance=20%")
+			if code != c.code || msg != c.want {
+				t.Errorf("exit %d, %q; want %d, %q", code, msg, c.code, c.want)
+			}
+		})
+	}
+
+	t.Run("upload status, back to being read", func(t *testing.T) {
+		s := newUploadServer(t)
+		if _, _, err := run("test", "--host", s.URL(), "--workspace", "Acme", "upload", "LSEG-2026-09.pdf", "--no-wait"); err != nil {
+			t.Fatal(err)
+		}
+		afterTheWait(s, backToReading)
+		code, msg := exitStatusOf(t.Context(), "test", "--host", s.URL(), "--workspace", "Acme", "upload", "status", lseg, "--fail-on-variance=20%")
+		if want := "1 document was still being read; firmfact goes on reading, so check again later"; code != ExitUnavailable || msg != want {
+			t.Errorf("exit %d, %q; want %d, %q", code, msg, ExitUnavailable, want)
 		}
 	})
 }

@@ -122,8 +122,8 @@ func checkVariance(t upload.Threshold, d *upload.Document) varianceCheck {
 	switch {
 	case upload.InProgress(d.State), d.State == upload.StateFailed, d.State == stateMissing,
 		d.State == upload.StateSkipped && d.Reason == "over_quota":
-		// A wait that ran out, or a document that could not be read: the
-		// exit status says so already.
+		// A document still being read, or one that could not be read:
+		// the exit status says so already (see uploadRun.failure).
 		return varianceCheck{}
 	case !d.Own:
 		return unchecked("uploaded by someone else, whose results only they see")

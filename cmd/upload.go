@@ -102,10 +102,11 @@ read (or, with --no-wait, sent); 1 when a file was refused or could not be
 read; 2 for a mistake on the command line, such as a pattern or folders
 with no files to upload, or an unnamed Demo workspace off a terminal; 3
 when not signed in; 4 when the workspace does not exist; 5 when the wait
-ran out, or firmfact was busy or rate-limited (run the command again:
-files already there are skipped); 6 when the host does not offer uploads
-yet; 9 when --fail-on-variance finds an invoice over its threshold. A
-file called status is ./status, as upload status is the command below.`,
+ran out or a document was still being read after it, or firmfact was busy
+or rate-limited (run the command again: files already there are skipped);
+6 when the host does not offer uploads yet; 9 when --fail-on-variance
+finds an invoice over its threshold. A file called status is ./status, as
+upload status is the command below.`,
 		Example: fmt.Sprintf(`  %[1]s upload LSEG-2026-09.pdf --workspace Acme
   %[1]s upload ~/Invoices/2026-09 --recursive --workspace Acme
   %[1]s upload invoice.pdf usage-report.xlsx --related

@@ -565,9 +565,13 @@ func (r *uploadRun) varianceGate() *varianceGate {
 
 // failure is the error the upload ends with apart from --fail-on-variance:
 // 1 when a file was refused or could not be read, 5 when one could not be
-// sent now or was still being read when the wait ran out, and the error's
-// own status when the sign-in or the workspace stopped the upload. A
-// refusal needs a person, so it wins over a wait that ran out.
+// sent now or was still being read once the upload stopped waiting, and
+// the error's own status when the sign-in or the workspace stopped the
+// upload. A refusal needs a person, so it wins over a wait that ran out.
+// A document is still being read after the wait when the wait ran out, but
+// also when it went back to being read before the full read that followed
+// (a document of a group matched again, or a retry): either way, what
+// firmfact made of it is not known yet.
 func (r *uploadRun) failure() error {
 	if r.stop != nil && r.stop.err != nil {
 		return r.stop.err
@@ -591,7 +595,7 @@ func (r *uploadRun) failure() error {
 			unread++
 		case d.State == upload.StateSkipped && d.Reason == "over_quota":
 			overQuota++
-		case upload.InProgress(d.State) && r.timedOut:
+		case upload.InProgress(d.State) && !r.flags.noWait:
 			reading++
 		}
 	}
@@ -633,7 +637,11 @@ func (r *uploadRun) failure() error {
 		for _, d := range inProgress(r.documents()) {
 			ids = append(ids, d.ID)
 		}
-		retry = append(retry, fmt.Sprintf("%d %s still being read after %s; check with `%s`", reading, plural(reading, "document was", "documents were"), httpx.Span(r.flags.waitTimeout), r.statusCommand(ids)))
+		after := ""
+		if r.timedOut {
+			after = " after " + httpx.Span(r.flags.waitTimeout)
+		}
+		retry = append(retry, fmt.Sprintf("%d %s still being read%s; check with `%s`", reading, plural(reading, "document was", "documents were"), after, r.statusCommand(ids)))
 	}
 	if len(retry) > 0 {
 		return withExit(status, errors.New(strings.Join(retry, "; ")))

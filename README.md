@@ -545,10 +545,11 @@ already there, and was read (with `--no-wait`, sent); 1 when a file was
 refused, or a document could not be read or was skipped for the allowance;
 2 for a mistake on the command line, such as a pattern or folders with no
 files to upload, or an unnamed Demo workspace off a terminal; 3 when not
-signed in; 4 when the workspace does not exist; 5 when the wait ran out, or
-firmfact was busy or rate-limited, which a later run picks up; 6 when the
-host does not offer uploads yet; 9 when `--fail-on-variance` finds an
-invoice over its threshold. When files ended in more than one of these
+signed in; 4 when the workspace does not exist; 5 when the wait ran out or
+a document was still being read after it, or firmfact was busy or
+rate-limited, which a later run picks up; 6 when the host does not offer
+uploads yet; 9 when `--fail-on-variance` finds an invoice over its
+threshold. When files ended in more than one of these
 ways, 1 wins over 5, and any of them over 9. With `--json`, the results
 are printed whatever the exit status once anything was sent, Ctrl-C
 included.
@@ -566,7 +567,7 @@ is down:
 | 2 | `usage` | the command line is wrong: an unknown command or flag, a missing argument or required flag. A typo gets a suggestion, and a command group such as `vendors` or `config` refuses a subcommand it does not have. Also a command that may delete or overwrite data, run off a terminal without `--yes`, an upload to a Demo workspace that nobody named, off a terminal, and `update --version` to an older release off a terminal without `--yes` |
 | 3 | `not_signed_in` | not signed in, or the session has ended; run `firmfact login` |
 | 4 | `not_found` | no such workspace, profile, tool or record, or no such release for `update --version` |
-| 5 | `unavailable` | rate-limited, the service failing, or no answer at all, or a wait for a workspace's setup or for uploaded documents to be read that ran out of time; worth retrying later |
+| 5 | `unavailable` | rate-limited, the service failing, or no answer at all, or a wait for a workspace's setup or for uploaded documents to be read that ran out of time, or after which a document was still being read; worth retrying later |
 | 6 | `unsupported` | the host cannot serve this CLI: an older firmfact, another service, or a CLI below the host's minimum version |
 | 9 | `variance_exceeded` | not a failure but a finding, for pipelines: `upload` or `upload status` with `--fail-on-variance` read every document, and an invoice's variance preview is over the threshold (see [Uploading documents](#uploading-documents)) |
 | 130 | `interrupted` | Ctrl-C or SIGTERM |

@@ -47,8 +47,8 @@ someone else uploaded shows its state and link only.
 The workspace is the one commands use (--workspace, FIRMFACT_WORKSPACE or
 the profile's), else the sign-in's default. Exit status: 4 when an id is not
 a document in the workspace; with --wait, 1 when a document could not be
-read and 5 when the wait ran out; 9 when --fail-on-variance finds an
-invoice over its threshold.`,
+read and 5 when the wait ran out, or a document was still being read after
+it; 9 when --fail-on-variance finds an invoice over its threshold.`,
 		Example: fmt.Sprintf(`  %[1]s upload status
   %[1]s upload status 423a2262-85dd-4cf1-9b51-60c7bbf2ff7d --wait
   %[1]s upload status 423a2262-85dd-4cf1-9b51-60c7bbf2ff7d --fail-on-variance=50
@@ -243,7 +243,8 @@ func (s *uploadStatus) print(docs []*upload.Document, missing []string) {
 }
 
 // result is the error show ends with: an id that is not a document here;
-// with --wait, a document that could not be read, or a wait that ran out.
+// with --wait, a document that could not be read, or one still being read
+// when the wait ran out or after it (see uploadRun.failure).
 func (s *uploadStatus) result(docs []*upload.Document, missing []string, timedOut bool) error {
 	if len(missing) > 0 {
 		for i, id := range missing {
@@ -259,7 +260,7 @@ func (s *uploadStatus) result(docs []*upload.Document, missing []string, timedOu
 		switch {
 		case d.State == upload.StateFailed, d.State == stateMissing, d.State == upload.StateSkipped && d.Reason == "over_quota":
 			unread++
-		case upload.InProgress(d.State) && timedOut:
+		case upload.InProgress(d.State):
 			reading++
 		}
 	}
@@ -267,7 +268,11 @@ func (s *uploadStatus) result(docs []*upload.Document, missing []string, timedOu
 	case unread > 0:
 		return withExit(ExitFailed, fmt.Errorf("%d %s not be read", unread, plural(unread, "document could", "documents could")))
 	case reading > 0:
-		return withExit(ExitUnavailable, fmt.Errorf("%d %s still being read after %s; firmfact goes on reading, so check again later", reading, plural(reading, "document was", "documents were"), httpx.Span(s.waitTimeout)))
+		after := ""
+		if timedOut {
+			after = " after " + httpx.Span(s.waitTimeout)
+		}
+		return withExit(ExitUnavailable, fmt.Errorf("%d %s still being read%s; firmfact goes on reading, so check again later", reading, plural(reading, "document was", "documents were"), after))
 	}
 	return nil
 }
