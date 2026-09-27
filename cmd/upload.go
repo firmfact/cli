@@ -7,6 +7,9 @@ import (
 	"io"
 	"io/fs"
 	"os"
+	"path/filepath"
+	"runtime"
+	"strings"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -61,11 +64,13 @@ needs a person on the document's review page. Nothing is booked until
 someone publishes it there.
 
 Name files, folders (with --recursive) or patterns such as '*.pdf', which
-the CLI expands where the shell did not. Hidden files are left out, and so
-is a file in a folder or a pattern that firmfact does not read. The
-argument - reads one file from standard input, and --name names it.
-Firmfact reads PDFs, images, Word and Excel files, CSV, text, email (.eml)
-and ZIP files, each under 50 MB.
+the CLI expands where the shell did not (on Windows, whatever the case).
+Hidden files, and the ~$ lock files Office keeps beside an open document,
+are left out, and so is a file in a folder or a pattern that firmfact does
+not read, before it is read. A link in a folder counts only when it leads
+to a file in that folder. The argument - reads one file from standard
+input, and --name names it. Firmfact reads PDFs, images, Word and Excel
+files, CSV, text, email (.eml) and ZIP files, each under 50 MB.
 
 Before it sends anything, the CLI asks firmfact which files are new, which
 are already in the workspace and how much of this month's allowance of
@@ -87,12 +92,13 @@ no one to ask, it needs --yes, and exits with status 2 without it.
 
 Exit status: 0 when every file was uploaded or was already there, and was
 read (or, with --no-wait, sent); 1 when a file was refused or could not be
-read; 2 for a mistake on the command line, or an unnamed Demo workspace off
-a terminal; 3 when not signed in; 4 when the workspace does not exist; 5
-when the wait ran out, or firmfact was busy or rate-limited (run the
-command again: files already there are skipped); 6 when the host does not
-offer uploads yet. A file called status is ./status, as upload status is
-the command below.`,
+read; 2 for a mistake on the command line, such as a pattern or folders
+with no files to upload, or an unnamed Demo workspace off a terminal; 3
+when not signed in; 4 when the workspace does not exist; 5 when the wait
+ran out, or firmfact was busy or rate-limited (run the command again:
+files already there are skipped); 6 when the host does not offer uploads
+yet. A file called status is ./status, as upload status is the command
+below.`,
 		Example: fmt.Sprintf(`  %[1]s upload LSEG-2026-09.pdf --workspace Acme
   %[1]s upload ~/Invoices/2026-09 --recursive --workspace Acme
   %[1]s upload invoice.pdf usage-report.xlsx --related
@@ -255,6 +261,15 @@ type uploadRun struct {
 	sendTotal, sendDone int
 	// asked is set once confirm has had its say, before the first request.
 	asked bool
+	// unread is why what firmfact made of the documents could not be read
+	// back after they were sent, if it could not; the results then show
+	// what the upload's own answers said.
+	unread error
+	// cut is set when an interrupt stopped the upload.
+	cut bool
+	// schema is the version of the document entries, as the server named
+	// it in its answers.
+	schema string
 
 	out      io.Writer // results: stdout
 	progress io.Writer // the plan's wait messages: stdout, or stderr with --json
@@ -295,14 +310,18 @@ func (r *uploadRun) target(ctx context.Context, c *api.Client) error {
 }
 
 // read reads standard input, when an argument names it, and hashes every
-// file once. A file with the same bytes as one before it goes once.
+// file once. A file with the same bytes as one before it goes once. A file
+// a folder or a pattern found is not read at all when firmfact does not
+// read its type, and no file is read past the most firmfact takes: neither
+// goes into a preflight, so the name, size and checksum of whatever else
+// a folder holds never leave the machine.
 func (r *uploadRun) read(ctx context.Context) error {
 	for _, s := range r.found.Sources {
 		if s.Path != upload.Stdin {
 			continue
 		}
 		if in, ok := r.app.In.(*os.File); ok && term.IsTerminal(int(in.Fd())) {
-			return usageErrorf("- reads the file from a pipe or a redirect, not from the terminal: such as `%s upload - --name %s < %s`", r.app.Name, shellWord(r.flags.name, "<name>"), shellWord(r.flags.name, "<file>"))
+			return r.stdinFromTerminal()
 		}
 		spooled, err := upload.Spool(r.app.In, "", upload.MaxFileBytes)
 		var tooLarge *upload.TooLargeError
@@ -325,10 +344,25 @@ func (r *uploadRun) read(ctx context.Context) error {
 			path = r.spooled.Path
 		}
 		f := &uploadFile{src: s}
+		r.files = append(r.files, f)
+		if !s.Named && !upload.Readable(path) {
+			f.settle(path)
+			f.skip("unsupported_type", "firmfact does not read files of this type")
+			continue
+		}
 		if len(r.found.Sources) > 1 {
 			r.live.show(fmt.Sprintf("Reading %d of %d files: %s", i+1, len(r.found.Sources), f.display()))
 		}
 		file, err := upload.Hash(path)
+		var tooLarge *upload.TooLargeError
+		switch {
+		case errors.As(err, &tooLarge):
+			f.settle(path)
+			f.set(outcomeRefused, "file_too_large", tooLargeMessage(f), ExitFailed)
+			continue
+		case err == nil:
+			err = s.Verify(file)
+		}
 		if err != nil {
 			return fmt.Errorf("could not read %s: %w", f.display(), err)
 		}
@@ -338,15 +372,49 @@ func (r *uploadRun) read(ctx context.Context) error {
 		f.file, f.name = file, file.Name
 		if first, ok := bySum[file.SHA256]; ok {
 			f.skip("same_contents", "the same as "+first.display())
+			f.local = true
 		} else {
 			bySum[file.SHA256] = f
 		}
-		r.files = append(r.files, f)
 	}
 	if len(r.files) == 0 {
-		return withExit(ExitFailed, errors.New(r.nothingFound()))
+		return usageErrorf("%s", r.nothingFound())
 	}
 	return nil
+}
+
+// stdinFromTerminal is the mistake of - with nothing piped to it. The
+// example redirects a file, which PowerShell cannot: there, the file is
+// named instead.
+func (r *uploadRun) stdinFromTerminal() error {
+	if runtimeOS == "windows" {
+		return usageErrorf("- reads the file from a pipe, not from the terminal; to upload a file, name it: such as `%s upload %s`", r.app.Name, shellWord(r.flags.name, "<file>"))
+	}
+	return usageErrorf("- reads the file from a pipe or a redirect, not from the terminal: such as `%s upload - --name %s < %s`", r.app.Name, shellWord(r.flags.name, "<name>"), shellWord(r.flags.name, "<file>"))
+}
+
+// runtimeOS is the system the CLI runs on; tests stand in for others.
+var runtimeOS = runtime.GOOS
+
+// settle records a file the CLI settles without reading it: its name and,
+// from the file system, its size.
+func (f *uploadFile) settle(path string) {
+	f.file = upload.File{Path: path, Name: filepath.Base(path)}
+	if info, err := os.Stat(path); err == nil {
+		f.file.Size = info.Size()
+	}
+	f.name = f.file.Name
+	f.local = true
+}
+
+// tooLargeMessage says why f, over the most one file may hold, is refused
+// before it is read, as the service would.
+func tooLargeMessage(f *uploadFile) string {
+	limit := ui.Bytes(upload.MaxFileBytes + 1)
+	if f.file.Size > upload.MaxFileBytes {
+		return fmt.Sprintf("%s: files of %s or more are not supported, and this one is %s", f.label(), limit, ui.Bytes(f.file.Size))
+	}
+	return fmt.Sprintf("%s: files of %s or more are not supported, and this one holds more", f.label(), limit)
 }
 
 // nothingFound says why the arguments named no file to upload.
@@ -354,7 +422,17 @@ func (r *uploadRun) nothingFound() string {
 	if n := len(r.found.Folders); n > 0 {
 		return fmt.Sprintf("nothing to upload: the %s matched %s; add --recursive to upload the files in %s", plural(n, "pattern", "patterns"), plural(n, "a folder", "folders only"), plural(n, "it", "them"))
 	}
-	return "nothing to upload: the folders and patterns named hold no files but hidden ones"
+	var but []string
+	if r.found.Hidden > 0 {
+		but = append(but, "hidden ones")
+	}
+	if r.found.Outside > 0 {
+		but = append(but, "links that lead out of them")
+	}
+	if len(but) > 0 {
+		return "nothing to upload: the folders and patterns named hold no files but " + strings.Join(but, " and ")
+	}
+	return "nothing to upload: the folders and patterns named hold no files"
 }
 
 // cleanup removes standard input's copy.
@@ -368,7 +446,16 @@ func (r *uploadRun) cleanup() {
 // who pressed Ctrl-C, what was sent before that.
 func (r *uploadRun) interrupted(ctx context.Context, err error) error {
 	r.live.clear()
-	if ctx.Err() == nil || r.app.JSONOutput || !r.sent {
+	if ctx.Err() == nil || !r.sent {
+		return err
+	}
+	r.cut = true
+	if r.app.JSONOutput {
+		// A script learns what was stored before the interrupt, and what
+		// was not sent, as from a run that ended.
+		if printErr := r.app.PrintJSON(r.json()); printErr != nil {
+			return printErr
+		}
 		return err
 	}
 	ui.EndInterruptedLine(r.out)
@@ -427,7 +514,10 @@ func (r *uploadRun) pending() int {
 }
 
 // finish waits for the documents to be read, unless --no-wait, and reads
-// back what firmfact made of the caller's own finished ones.
+// back what firmfact made of the caller's own finished ones. Once files
+// are stored, the report of them must not be lost: a read that fails is
+// kept in unread, for the results to say, and only an interrupt ends the
+// run here.
 func (r *uploadRun) finish(ctx context.Context) error {
 	// An upload stopped by its sign-in or its workspace could not read
 	// the documents back either.
@@ -438,12 +528,24 @@ func (r *uploadRun) finish(ctx context.Context) error {
 	if !r.flags.noWait {
 		w := documentWait{uc: r.uc, workspace: r.ref, timeout: r.flags.waitTimeout, progress: r.progress, live: &r.live}
 		timedOut, err := w.wait(ctx, docs)
-		if err != nil {
-			return err
+		switch {
+		case ctx.Err() != nil:
+			return ctx.Err()
+		case err != nil:
+			r.unread = err
+			return nil
 		}
 		r.timedOut = timedOut
 	}
-	return readResults(ctx, r.uc, r.ref, docs)
+	schema, err := readResults(ctx, r.uc, r.ref, docs)
+	switch {
+	case ctx.Err() != nil:
+		return ctx.Err()
+	case err != nil:
+		r.unread = err
+	}
+	r.schema = orDefault(schema, r.schema)
+	return nil
 }
 
 // documents are the documents this run follows, each once. Files that

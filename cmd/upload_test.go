@@ -271,13 +271,32 @@ func TestUploadFindsFiles(t *testing.T) {
 		{[]string{"missing.pdf"}, ExitUsage, "no such file: missing.pdf"},
 		{[]string{"a.pdf", "status"}, ExitUsage, "no such file: status; for the status of your uploads, run `firmfact upload status`"},
 		{[]string{"*.docx"}, ExitUsage, "no files match *.docx"},
-		{[]string{"2026-0?"}, ExitFailed, "nothing to upload: the pattern matched a folder; add --recursive to upload the files in it"},
+		{[]string{"2026-0?"}, ExitUsage, "nothing to upload: the pattern matched a folder; add --recursive to upload the files in it"},
 		{nil, ExitUsage, "name the files to upload"},
 		{[]string{"a.pdf", "--wait-timeout", "0s"}, ExitUsage, "--wait-timeout must be more than 0"},
 	} {
 		code, msg := exitStatusOf(t.Context(), "test", append([]string{"--host", s.URL(), "--workspace", "Acme", "upload"}, c.args...)...)
 		if code != c.code || !strings.Contains(msg, c.want) {
 			t.Errorf("%v: exit %d, %q; want %d, %q", c.args, code, msg, c.code, c.want)
+		}
+	}
+	// Folders that hold nothing to upload are a mistake as a pattern that
+	// matches nothing is, and say what they did hold.
+	if err := os.Mkdir(filepath.Join(dir, "empty"), 0o750); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "2026-09", ".DS_Store"), nil, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Remove(filepath.Join(dir, "2026-09", "c.pdf")); err != nil {
+		t.Fatal(err)
+	}
+	for folder, want := range map[string]string{
+		"empty":   "nothing to upload: the folders and patterns named hold no files",
+		"2026-09": "nothing to upload: the folders and patterns named hold no files but hidden ones",
+	} {
+		if code, msg := exitStatusOf(t.Context(), "test", "--host", s.URL(), "--workspace", "Acme", "upload", folder, "-r"); code != ExitUsage || msg != want {
+			t.Errorf("%s: exit %d, %q", folder, code, msg)
 		}
 	}
 	// status names the subcommand, so a file called status is ./status.
@@ -903,7 +922,9 @@ func TestUploadManyFiles(t *testing.T) {
 	if preflights, uploads := s.counts(); preflights != 2 || uploads != len(names) {
 		t.Errorf("%d preflights, %d uploads", preflights, uploads)
 	}
-	for _, want := range []string{"Uploading to Acme (files 1 to 100 of 102): 100 new\n", "Uploading to Acme (files 101 to 102 of 102): 2 new\n", "102 uploaded: 102 still being read.\n"} {
+	// The last files of a preflight's worth wait for the next one, which
+	// sees whole a set of reports that would have spanned the two.
+	for _, want := range []string{"Uploading to Acme (files 1 to 90 of 102): 90 new\n", "Uploading to Acme (files 91 to 102 of 102): 12 new\n", "102 uploaded: 102 still being read.\n"} {
 		if !strings.Contains(stdout, want) {
 			t.Errorf("missing %q", want)
 		}
@@ -919,7 +940,7 @@ func TestUploadManyFiles(t *testing.T) {
 		return false
 	}
 	stdout, _, err = run("test", "--host", s.URL(), "--workspace", "Acme", "upload", "invoices", "-r", "--no-wait")
-	if code, _ := Classify(err); code != ExitUnavailable || !strings.Contains(stdout, "2 files were not sent: Service unavailable.\n") {
+	if code, _ := Classify(err); code != ExitUnavailable || !strings.Contains(stdout, "12 files were not sent: Service unavailable.\n") {
 		t.Errorf("exit %d: %v\n%s", code, err, stdout)
 	}
 }

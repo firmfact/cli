@@ -32,31 +32,69 @@ type File struct {
 	// SHA256 is the file's SHA-256 in lower-case hex, which the server
 	// finds duplicates by and checks the bytes it gets against.
 	SHA256 string
+
+	// info is the file Hash read, which each attempt at sending it must
+	// find at Path again (see same).
+	info os.FileInfo
 }
 
 // Hash reads the file at path once, a piece at a time, for its size and
 // SHA-256. Only a regular file will do: one the upload can read again, from
-// the start, for each attempt, and find unchanged.
+// the start, for each attempt, and find unchanged. A file of more than
+// MaxFileBytes is a *TooLargeError, and is not read beyond that: firmfact
+// would refuse it, and a file such as /proc/self/pagemap, whose size says
+// 0, would otherwise be read for ever.
 func Hash(path string) (File, error) {
-	info, err := os.Stat(path)
+	f, info, err := openRegular(path)
 	if err != nil {
 		return File{}, err
 	}
-	if !info.Mode().IsRegular() {
-		return File{}, fmt.Errorf("%s is not a regular file", path)
-	}
-	f, err := os.Open(path)
-	if err != nil {
-		return File{}, err
+	// Closing a file that was only read loses nothing.
+	defer func() { _ = f.Close() }()
+	if info.Size() > MaxFileBytes {
+		return File{}, &TooLargeError{Path: path, Limit: MaxFileBytes}
 	}
 	h := sha256.New()
-	n, err := io.Copy(h, f)
-	// Closing a file that was only read loses nothing.
-	_ = f.Close()
-	if err != nil {
+	n, err := io.Copy(h, io.LimitReader(f, MaxFileBytes+1))
+	switch {
+	case err != nil:
 		return File{}, fmt.Errorf("reading %s: %w", path, err)
+	case n > MaxFileBytes:
+		return File{}, &TooLargeError{Path: path, Limit: MaxFileBytes}
 	}
-	return File{Path: path, Name: filepath.Base(path), Size: n, SHA256: hex.EncodeToString(h.Sum(nil))}, nil
+	return File{Path: path, Name: filepath.Base(path), Size: n, SHA256: hex.EncodeToString(h.Sum(nil)), info: info}, nil
+}
+
+// openRegular opens the file at path for reading, when it is a regular
+// file, and says what it found. The type comes from the file opened, not
+// from the path beforehand, which could be swapped in between; and the
+// open does not wait (openFlags), which it would on a pipe with no writer.
+func openRegular(path string) (*os.File, os.FileInfo, error) {
+	f, err := os.OpenFile(path, os.O_RDONLY|openFlags, 0)
+	if err != nil {
+		return nil, nil, err
+	}
+	info, err := f.Stat()
+	if err == nil && !info.Mode().IsRegular() {
+		err = fmt.Errorf("%s is not a regular file", path)
+	}
+	if err != nil {
+		_ = f.Close()
+		return nil, nil, err
+	}
+	return f, info, nil
+}
+
+// same reports whether opened is still the file Hash read: the same file
+// (not another one moved or linked into its place since), of the same size
+// and last changed at the same time. A File that Hash did not make has
+// nothing to compare, and passes.
+func (f *File) same(opened *os.File) bool {
+	if f.info == nil {
+		return true
+	}
+	info, err := opened.Stat()
+	return err == nil && os.SameFile(info, f.info) && info.Size() == f.info.Size() && info.ModTime().Equal(f.info.ModTime())
 }
 
 // ChangedError is a file that is no longer what Hash found: it grew,

@@ -11,6 +11,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/firmfact/cli/internal/httpx"
 	"github.com/firmfact/cli/internal/ui"
 	"github.com/firmfact/cli/internal/upload"
 )
@@ -132,8 +133,10 @@ type statusJSONData struct {
 	Missing []string `json:"missing,omitempty"`
 }
 
-func documentsJSON(docs []*upload.Document, missing []string) statusJSON {
-	out := statusJSON{Meta: uploadJSONMeta{Schema: upload.Schema}, Notes: []string{}}
+// documentsJSON is docs, and the ids that are not documents here, in the
+// schema the server named for them (upload.Schema when it named none).
+func documentsJSON(docs []*upload.Document, missing []string, schema string) statusJSON {
+	out := statusJSON{Meta: uploadJSONMeta{Schema: orDefault(schema, upload.Schema)}, Notes: []string{}}
 	out.Data.Results = make([]json.RawMessage, 0, len(docs))
 	for _, d := range docs {
 		out.Data.Results = append(out.Data.Results, documentJSON(d))
@@ -167,12 +170,14 @@ func (s *uploadStatus) show(ctx context.Context, ids []string) error {
 		if timedOut, err = w.wait(ctx, docs); err != nil {
 			return err
 		}
-		if err := readResults(ctx, s.uc, s.ref, docs); err != nil {
+		var schema string
+		if schema, err = readResults(ctx, s.uc, s.ref, docs); err != nil {
 			return err
 		}
+		list.Schema = orDefault(schema, list.Schema)
 	}
 	if s.app.JSONOutput {
-		if err := s.app.PrintJSON(documentsJSON(docs, list.Missing)); err != nil {
+		if err := s.app.PrintJSON(documentsJSON(docs, list.Missing, list.Schema)); err != nil {
 			return err
 		}
 	} else {
@@ -228,7 +233,7 @@ func (s *uploadStatus) result(docs []*upload.Document, missing []string, timedOu
 	case unread > 0:
 		return withExit(ExitFailed, fmt.Errorf("%d %s not be read", unread, plural(unread, "document could", "documents could")))
 	case reading > 0:
-		return withExit(ExitUnavailable, fmt.Errorf("%d %s still being read after %s; firmfact goes on reading, so check again later", reading, plural(reading, "document was", "documents were"), s.waitTimeout))
+		return withExit(ExitUnavailable, fmt.Errorf("%d %s still being read after %s; firmfact goes on reading, so check again later", reading, plural(reading, "document was", "documents were"), httpx.Span(s.waitTimeout)))
 	}
 	return nil
 }
@@ -247,7 +252,7 @@ func (s *uploadStatus) recent(ctx context.Context, limit int) error {
 		docs[i] = &list.Results[i]
 	}
 	if s.app.JSONOutput {
-		return s.app.PrintJSON(documentsJSON(docs, nil))
+		return s.app.PrintJSON(documentsJSON(docs, nil, list.Schema))
 	}
 	w := s.app.Out
 	if len(docs) == 0 {

@@ -7,6 +7,7 @@ import (
 	"io/fs"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/firmfact/cli/internal/api"
 	"github.com/firmfact/cli/internal/ui"
@@ -63,6 +64,9 @@ type uploadFile struct {
 	// the reason in uploadRun.stop, which the results say once for all of
 	// them.
 	stopped bool
+	// local is set on a file the CLI settled before any preflight: left
+	// out or refused without asking, which the first plan says.
+	local bool
 }
 
 func (f *uploadFile) set(outcome, code, message string, status int) {
@@ -116,6 +120,8 @@ func (r *uploadRun) options() upload.Options {
 // a preflight's worth (upload.MaxPreflightFiles) at a time: the allowance
 // each preflight reports then counts the uploads before it.
 func (r *uploadRun) send(ctx context.Context) error {
+	// Whatever is printed next starts on a line of its own.
+	defer r.live.clear()
 	var queue []*uploadFile
 	for _, f := range r.files {
 		if f.outcome == "" {
@@ -125,24 +131,35 @@ func (r *uploadRun) send(ctx context.Context) error {
 	if r.flags.related && len(queue) > upload.MaxPreflightFiles {
 		return usageErrorf("--related sends the files as one group, which holds far fewer than these %d", len(queue))
 	}
-	total := len(queue)
-	for i := 0; i < len(queue) && r.stop == nil; i += upload.MaxPreflightFiles {
-		chunk := queue[i:min(i+upload.MaxPreflightFiles, len(queue))]
-		p, err := r.uc.Preflight(ctx, r.ref, filesOf(chunk), r.options())
-		switch {
-		case err != nil && i == 0:
-			return err
-		case err != nil:
-			r.halted(ctx, err)
-			continue
+	if len(queue) == 0 {
+		// Every file was settled without asking: the plan says how.
+		if !r.app.JSONOutput {
+			r.printPlan(nil, nil, 0, 0)
 		}
-		r.applyPreflight(chunk, p, i == 0)
+		return nil
+	}
+	total := len(queue)
+	for start := 0; start < len(queue) && r.stop == nil; {
+		chunk := queue[start:min(start+upload.MaxPreflightFiles, len(queue))]
+		p, err := r.uc.Preflight(ctx, r.ref, filesOf(chunk), r.options())
+		if err != nil {
+			if start == 0 || ctx.Err() != nil {
+				return err
+			}
+			r.halted(ctx, err)
+			break
+		}
+		if start+len(chunk) < len(queue) {
+			chunk, p = holdBack(chunk, p)
+		}
+		r.applyPreflight(chunk, p, start == 0)
 		groups := r.groups(chunk, p)
 		for _, g := range groups {
 			r.sendTotal += len(g.members)
 		}
 		if !r.app.JSONOutput {
-			r.printPlan(chunk, groups, i, total)
+			r.live.clear()
+			r.printPlan(chunk, groups, start, total)
 		}
 		// The question comes before the first request, which need not be
 		// among the first preflight's files: those may all be there already.
@@ -160,6 +177,7 @@ func (r *uploadRun) send(ctx context.Context) error {
 				return err
 			}
 		}
+		start += len(chunk)
 	}
 	for _, f := range r.files {
 		if f.outcome == "" && r.stop != nil {
@@ -168,6 +186,69 @@ func (r *uploadRun) send(ctx context.Context) error {
 		}
 	}
 	return nil
+}
+
+// setMargin is how many files at the end of a preflight's worth wait for
+// the next preflight when more follow. The server finds a set of related
+// reports by name, such as a Bloomberg SID set, only among the files of
+// one preflight, and a set is at most a request's worth of files (10),
+// which sit together in a folder's lexical order.
+const setMargin = 10
+
+// holdBack cuts chunk, and the preflight p's verdicts on it, before its
+// last setMargin files and before any set that reaches them, for the next
+// preflight to see whole. A set split between two preflights would go as
+// two requests: two groups, each counted against the allowance, which the
+// server's rule that a group never spans requests forbids. The verdicts on
+// the files kept do not depend on those after them.
+func holdBack(chunk []*uploadFile, p *upload.Preflight) ([]*uploadFile, *upload.Preflight) {
+	byName := map[string][]int{}
+	for i, f := range chunk {
+		name := f.file.Name
+		for _, pf := range p.Files {
+			if pf.Index == i && pf.Name != "" {
+				name = pf.Name
+			}
+		}
+		byName[name] = append(byName[name], i)
+	}
+	// span is the first position of set's files, and whether any is at or
+	// past cut.
+	span := func(set upload.Set, cut int) (first int, reaches bool) {
+		first = len(chunk)
+		for _, name := range set.Filenames {
+			for _, i := range byName[name] {
+				first, reaches = min(first, i), reaches || i >= cut
+			}
+		}
+		return first, reaches
+	}
+	cut := len(chunk) - setMargin
+	for moved := true; moved && cut > 0; {
+		moved = false
+		for _, set := range p.Sets {
+			if first, reaches := span(set, cut); reaches && first < cut {
+				cut, moved = first, true
+			}
+		}
+	}
+	if cut <= 0 {
+		// A set as long as the preflight: nothing is gained by waiting.
+		return chunk, p
+	}
+	kept := *p
+	kept.Files, kept.Sets = nil, nil
+	for _, pf := range p.Files {
+		if pf.Index < cut {
+			kept.Files = append(kept.Files, pf)
+		}
+	}
+	for _, set := range p.Sets {
+		if _, reaches := span(set, cut); !reaches {
+			kept.Sets = append(kept.Sets, set)
+		}
+	}
+	return chunk[:cut], &kept
 }
 
 // halted stops the upload after err, an error no retry by the CLI helps
@@ -254,9 +335,8 @@ type sendGroup struct {
 	// related sends them with group_as_related (--related); a set the
 	// server recognises by name goes without, as it forms the set itself.
 	related bool
-	// kind is the set's kind, for the plan: related, or the kind of
-	// report set the server recognised.
-	kind     string
+	// guidance is the upload screen's advice on a set the server
+	// recognised, with the title the plan calls it by.
 	guidance *upload.Guidance
 }
 
@@ -310,7 +390,7 @@ func (r *uploadRun) groups(chunk []*uploadFile, p *upload.Preflight) []sendGroup
 			}
 			continue
 		}
-		groups = append(groups, sendGroup{members: send, related: r.flags.related, kind: set.Kind, guidance: set.Guidance})
+		groups = append(groups, sendGroup{members: send, related: r.flags.related, guidance: set.Guidance})
 	}
 	for i, f := range chunk {
 		if f.outcome == "" && !grouped[i] {
@@ -373,6 +453,9 @@ func (r *uploadRun) attempt(ctx context.Context, g sendGroup, retried bool) erro
 	res, err := r.uc.Upload(ctx, r.ref, filesOf(g.members), upload.Options{Related: g.related, NewVersion: r.flags.newVersion})
 	if err != nil {
 		return r.sendFailed(ctx, g, err, retried)
+	}
+	if res.Schema != "" {
+		r.schema = res.Schema
 	}
 	applyOutcomes(g.members, res.Results)
 	return nil
@@ -562,6 +645,14 @@ func (r *uploadRun) refusedWhole(g sendGroup, refused *upload.RefusedError) {
 // the CLI could read, by asking the preflight again: a file that is now in
 // the workspace was stored before the answer was lost, and one that is not
 // is sent again, once. A second failure stops the upload.
+//
+// The server may still be at the request whose answer was lost (a proxy
+// on the way gives up long before the server does, while it scans each
+// file for viruses), so a file it says is being uploaded right now is
+// asked about again until it is there, for as long as an answer may take.
+// It stores a group's files one at a time, so the answer can come with
+// some of them stored: the rest do not go again, as a second request would
+// make them a group of their own, counted again.
 func (r *uploadRun) recheck(ctx context.Context, g sendGroup, cause error, retried bool) error {
 	lost := ui.SafeLine(cause.Error())
 	unknown := func() {
@@ -576,17 +667,13 @@ func (r *uploadRun) recheck(ctx context.Context, g sendGroup, cause error, retri
 		unknown()
 		return nil
 	}
-	p, err := r.uc.Preflight(ctx, r.ref, filesOf(g.members), r.options())
+	verdicts, err := r.settled(ctx, g.members)
 	if ctx.Err() != nil {
 		return ctx.Err()
 	}
 	if err != nil {
 		unknown()
 		return nil
-	}
-	verdicts := map[int]upload.PreflightFile{}
-	for _, pf := range p.Files {
-		verdicts[pf.Index] = pf
 	}
 	var again []*uploadFile
 	for i, f := range g.members {
@@ -603,9 +690,49 @@ func (r *uploadRun) recheck(ctx context.Context, g sendGroup, cause error, retri
 			again = append(again, f)
 		}
 	}
-	if len(again) == 0 {
+	switch {
+	case len(again) == 0:
+		return nil
+	case len(again) < len(g.members):
+		for _, f := range again {
+			f.set(outcomeFailed, "group_incomplete", "not sent again without the rest of its group, after the group's answer was lost; run the command again to send it", ExitUnavailable)
+		}
 		return nil
 	}
 	r.uc.API.Debugf("sending %d %s again after: %v", len(again), plural(len(again), "file", "files"), cause)
-	return r.attempt(ctx, sendGroup{members: again, related: g.related, kind: g.kind}, true)
+	return r.attempt(ctx, sendGroup{members: again, related: g.related, guidance: g.guidance}, true)
+}
+
+// recheckWait is how long recheck asks about files the server is still
+// storing: as long as the CLI waits for an answer once it has sent a
+// request (api.Pace.Answer). Tests shorten it.
+var recheckWait = api.DefaultPace.Answer
+
+// settled is the preflight's verdict on each of files, by position, asked
+// again while any of them is being uploaded right now, up to recheckWait.
+// The pauses double from uploadPollInterval to 30 s, for a dozen or so
+// preflights in all, well inside the rate limit on them.
+func (r *uploadRun) settled(ctx context.Context, files []*uploadFile) (map[int]upload.PreflightFile, error) {
+	deadline := time.Now().Add(recheckWait)
+	var gap time.Duration
+	for {
+		p, err := r.uc.Preflight(ctx, r.ref, filesOf(files), r.options())
+		if err != nil {
+			return nil, err
+		}
+		verdicts := map[int]upload.PreflightFile{}
+		storing := false
+		for _, pf := range p.Files {
+			verdicts[pf.Index] = pf
+			storing = storing || pf.Status == upload.PreflightInProgress
+		}
+		if !storing || !time.Now().Before(deadline) {
+			return verdicts, nil
+		}
+		r.live.show(fmt.Sprintf("No answer came; waiting for firmfact to finish storing %s", files[0].label()))
+		gap = nextUploadRetry(gap, uploadPollInterval)
+		if !ui.Pause(ctx, min(gap, time.Until(deadline))) {
+			return nil, ctx.Err()
+		}
+	}
 }

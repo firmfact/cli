@@ -48,7 +48,10 @@ change with it, so they are not listed here.
   contract, and what the review page asks. Nothing is booked until someone
   publishes it there. Files already in the workspace are not sent again;
   `--related` sends files as one group, counted once; an upload to the
-  Demo workspace that nobody named asks first, or needs `--yes`.
+  Demo workspace that nobody named asks first, or needs `--yes`. A file of
+  a type firmfact does not read in a folder or a pattern, and a link that
+  leads out of a folder, is left out before it is read, so firmfact is
+  never told of it.
 - `upload status` lists your recent uploads, or shows one in full, and
   `--wait` waits until it is read.
 - A command that writes to a workspace says so in its help, and one that may

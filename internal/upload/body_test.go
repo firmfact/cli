@@ -9,8 +9,10 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
+	"time"
 )
 
 // writeFile writes content to a file called name in a new directory and
@@ -193,5 +195,72 @@ func TestClosedFormReadsNoMore(t *testing.T) {
 	rc.Close()
 	if _, err := rc.Read(buf); !errors.Is(err, os.ErrClosed) {
 		t.Errorf("a read after Close: %v", err)
+	}
+}
+
+// A file over the limit is refused before it is read: by its size, or, for
+// a file whose size says nothing (such as /proc/self/pagemap, which says
+// 0), once the limit has been read.
+func TestHashStopsAtTheLimit(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "huge.pdf")
+	f, err := os.Create(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Sparse: no disk space, and nothing to read if the size is checked.
+	if err := f.Truncate(MaxFileBytes + 1); err != nil {
+		t.Fatal(err)
+	}
+	f.Close()
+	var tooLarge *TooLargeError
+	if _, err := Hash(path); !errors.As(err, &tooLarge) || tooLarge.Path != path || err.Error() != path+" holds more than 52428799 bytes, the most one file may be" {
+		t.Errorf("a file over the limit: %v", err)
+	}
+	if runtime.GOOS != "linux" {
+		return
+	}
+	start := time.Now()
+	if _, err := Hash("/proc/self/pagemap"); !errors.As(err, &tooLarge) {
+		t.Errorf("/proc/self/pagemap: %v", err)
+	}
+	if took := time.Since(start); took > 30*time.Second {
+		t.Errorf("/proc/self/pagemap took %s", took)
+	}
+}
+
+// A file put in the place of the one hashed, even with the same bytes, is
+// not sent: not a byte of it goes.
+func TestSwappedFileStopsTheForm(t *testing.T) {
+	f := writeFile(t, "LSEG-2026-07.pdf", "%PDF-1.7 an invoice")
+	b, err := newBody([]File{f}, Options{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	other := filepath.Join(filepath.Dir(f.Path), "other.pdf")
+	if err := os.WriteFile(other, []byte("%PDF-1.7 an invoice"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Rename(other, f.Path); err != nil {
+		t.Fatal(err)
+	}
+	raw, err := readAll(t, b)
+	var changed *ChangedError
+	if !errors.As(err, &changed) || changed.Path != f.Path {
+		t.Errorf("got %v, want a *ChangedError", err)
+	}
+	if bytes.Contains(raw, []byte("an invoice")) {
+		t.Error("the other file's bytes were sent")
+	}
+}
+
+// A request's size is the files' and the form's around them, as sent.
+func TestRequestSize(t *testing.T) {
+	f := writeFile(t, "a.pdf", "%PDF-1.7")
+	b, _ := newBody([]File{f, f}, Options{Related: true})
+	if got := RequestSize([]File{f, f}, Options{Related: true}); got != b.Size() || got <= 2*f.Size {
+		t.Errorf("RequestSize = %d, the body is %d", got, b.Size())
+	}
+	if RequestSize(nil, Options{}) != 0 {
+		t.Error("no files, no request")
 	}
 }

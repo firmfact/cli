@@ -4,6 +4,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/firmfact/cli/internal/upload"
 )
 
 // inUTC shows times in UTC for the rest of the test, whatever the
@@ -161,5 +163,14 @@ func TestUploadStatusCommandLine(t *testing.T) {
 	}
 	if code, msg := exitStatusOf(t.Context(), "test", "--host", s.URL(), "--workspace", "Nope", "upload", "status"); code != ExitNotFound {
 		t.Errorf("an unknown workspace: exit %d, %q", code, msg)
+	}
+}
+
+// A wait that ran out says how long it was as upload does: 15m, not 15m0s.
+func TestUploadStatusWaitTimeoutReadsAsASpan(t *testing.T) {
+	s := &uploadStatus{wait: true, waitTimeout: 15 * time.Minute}
+	err := s.result([]*upload.Document{{ID: "x", State: upload.StateReading}}, nil, true)
+	if code, _ := Classify(err); code != ExitUnavailable || err.Error() != "1 document was still being read after 15m; firmfact goes on reading, so check again later" {
+		t.Errorf("exit %d: %v", code, err)
 	}
 }

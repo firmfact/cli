@@ -3,6 +3,7 @@ package cmd
 import (
 	"bytes"
 	"fmt"
+	"io"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -126,5 +127,49 @@ func TestUploadShowsProgressOnATerminal(t *testing.T) {
 	}
 	if strings.Contains(shown, "Waiting for 2 documents to be read (at most") {
 		t.Errorf("the line for logs was shown on the terminal: %q", shown)
+	}
+}
+
+// The live line is gone before whatever follows it, also when nothing is
+// waited for (--no-wait): the results start on a line of their own.
+func TestUploadClearsTheLiveLineWithoutAWait(t *testing.T) {
+	isolate(t)
+	fastUploadPolls(t)
+	t.Setenv("TERM", "xterm-256color")
+	t.Setenv("NO_COLOR", "1")
+	s := newUploadServer(t)
+	uploadDir(t, "LSEG-2026-09.pdf", "BBG-88123.pdf")
+
+	shown := runAttended(t, 80, "--host", s.URL(), "--workspace", "Acme", "upload", "LSEG-2026-09.pdf", "BBG-88123.pdf", "--no-wait")
+	i := strings.LastIndex(shown, "Sending 2 of 2: BBG-88123.pdf (")
+	if i < 0 {
+		t.Fatalf("no live line in %q", shown)
+	}
+	line, _, _ := strings.Cut(shown[i:], "\n")
+	if !strings.Contains(line, ")\r\x1b[K") {
+		t.Errorf("the live line stayed: %q", line)
+	}
+}
+
+// - with a terminal for standard input is a mistake, and the hint that
+// says what to do works in the shell at hand: a redirect, or on Windows,
+// where PowerShell has none, naming the file.
+func TestUploadStandardInputFromATerminal(t *testing.T) {
+	isolate(t)
+	s := newUploadServer(t)
+	for goos, want := range map[string]string{
+		"linux":   "- reads the file from a pipe or a redirect, not from the terminal: such as `firmfact upload - --name scan.pdf < scan.pdf`",
+		"windows": "- reads the file from a pipe, not from the terminal; to upload a file, name it: such as `firmfact upload scan.pdf`",
+	} {
+		prev := runtimeOS
+		runtimeOS = goos
+		tty, shown := terminal(t, 80)
+		err := NewRootCommand(Build{Version: "test"}, []string{"--host", s.URL(), "--workspace", "Acme", "upload", "-", "--name", "scan.pdf"},
+			IOStreams{In: tty, Out: tty, Err: io.Discard}).Execute()
+		shown()
+		runtimeOS = prev
+		if code, _ := Classify(err); code != ExitUsage || err.Error() != want {
+			t.Errorf("%s: exit %d, %v", goos, code, err)
+		}
 	}
 }

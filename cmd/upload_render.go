@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"slices"
 	"strings"
 
 	"github.com/firmfact/cli/internal/httpx"
@@ -23,11 +24,20 @@ const maxBlocks = 3
 // printPlan prints what the server says it would do with chunk, the files
 // of one preflight: what is new, what is already in the workspace, what it
 // refuses and why, which files go together, and on the first chunk what
-// was left out, the allowance and a warning about a Demo workspace.
+// the CLI left out or refused itself, the allowance and a warning about a
+// Demo workspace. With no chunk, the CLI settled every file itself.
 func (r *uploadRun) printPlan(chunk []*uploadFile, groups []sendGroup, start, total int) {
 	w := r.out
 	var fresh, dup, busy, refused int
-	for _, f := range chunk {
+	counted := chunk
+	if start == 0 {
+		for _, f := range r.files {
+			if f.local {
+				counted = append(counted[:len(counted):len(counted)], f)
+			}
+		}
+	}
+	for _, f := range counted {
 		switch f.outcome {
 		case "":
 			fresh++
@@ -65,7 +75,7 @@ func (r *uploadRun) printPlan(chunk []*uploadFile, groups []sendGroup, start, to
 		fmt.Fprintf(w, "Nothing to send to %s\n", where)
 	}
 
-	printRefusals(w, chunk)
+	printRefusals(w, withOutcome(chunk, outcomeRefused, outcomeNotSent))
 	for _, f := range chunk {
 		if f.outcome == outcomeInProgress {
 			fmt.Fprintf(w, "  %s: someone is uploading the same file right now; run the command again in a minute to see it\n", f.label())
@@ -73,43 +83,16 @@ func (r *uploadRun) printPlan(chunk []*uploadFile, groups []sendGroup, start, to
 		}
 	}
 	for _, g := range groups {
-		if len(g.members) < 2 {
-			continue
-		}
-		names := make([]string, len(g.members))
-		for i, f := range g.members {
-			names[i] = f.label()
-		}
-		if g.related {
-			fmt.Fprintf(w, "  Sent together as related documents, counted once against the allowance: %s\n", strings.Join(names, ", "))
-		} else {
-			fmt.Fprintf(w, "  Sent together as one %s set: %s\n", words(g.kind), strings.Join(names, ", "))
-		}
-		if g.guidance != nil {
-			for _, s := range []string{g.guidance.Message, g.guidance.Suggestion} {
-				if strings.TrimSpace(s) != "" {
-					fmt.Fprintf(w, "    %s\n", ui.SafeLine(s))
-				}
-			}
-		}
+		r.printGroup(w, g)
 	}
-	var unread []string
-	for _, f := range chunk {
-		if f.outcome == outcomeSkipped {
-			unread = append(unread, f.label())
-		}
-	}
-	if len(unread) > 0 {
-		fmt.Fprintf(w, "  Left out, as firmfact does not read files of their type: %s\n", someOf(unread, 5))
-	}
+	// Found files the server left out by their names, such as a Data
+	// License delivery, which only the web app takes: its sentences say
+	// why.
+	printRefusals(w, withOutcome(chunk, outcomeSkipped))
 	if start > 0 {
 		return
 	}
-	for _, f := range r.files {
-		if f.code == "same_contents" {
-			fmt.Fprintf(w, "  Left out %s: %s\n", f.display(), f.message)
-		}
-	}
+	r.printSettled(w)
 	if n := len(r.found.Folders); n > 0 {
 		folders := make([]string, n)
 		for i, folder := range r.found.Folders {
@@ -120,6 +103,9 @@ func (r *uploadRun) printPlan(chunk []*uploadFile, groups []sendGroup, start, to
 	}
 	if n := r.found.Hidden; n > 0 {
 		fmt.Fprintf(w, "  Left out %d hidden %s\n", n, plural(n, "file", "files"))
+	}
+	if n := r.found.Outside; n > 0 {
+		fmt.Fprintf(w, "  Left out %d %s that %s out of the folders named\n", n, plural(n, "link", "links"), plural(n, "leads", "lead"))
 	}
 	if a := r.allowance; a != nil && a.Limit != nil && a.Remaining != nil {
 		line := fmt.Sprintf("Allowance: %d of %d documents left this month", *a.Remaining, *a.Limit)
@@ -133,43 +119,125 @@ func (r *uploadRun) printPlan(chunk []*uploadFile, groups []sendGroup, start, to
 	}
 }
 
-// printRefusals lists why each refused file of chunk is not sent, a
-// sentence once however many files it is about.
-func printRefusals(w io.Writer, chunk []*uploadFile) {
-	var order []string
-	byMessage := map[string][]*uploadFile{}
+// printGroup says which files g sends together, when it sends more than
+// one, and warns of a request that may be too large to get through.
+func (r *uploadRun) printGroup(w io.Writer, g sendGroup) {
+	if len(g.members) < 2 {
+		return
+	}
+	names := make([]string, len(g.members))
+	for i, f := range g.members {
+		names[i] = f.label()
+	}
+	if g.related {
+		fmt.Fprintf(w, "  Sent together as related documents, counted once against the allowance: %s\n", strings.Join(names, ", "))
+	} else {
+		fmt.Fprintf(w, "  Sent together as one %s: %s\n", setTitle(g), strings.Join(names, ", "))
+	}
+	if g.guidance != nil {
+		for _, s := range []string{g.guidance.Message, g.guidance.Suggestion} {
+			if strings.TrimSpace(s) != "" {
+				fmt.Fprintf(w, "    %s\n", ui.SafeLine(s))
+			}
+		}
+	}
+	opts := upload.Options{Related: g.related, NewVersion: r.flags.newVersion}
+	if size := upload.RequestSize(filesOf(g.members), opts); size > upload.NearRequestLimit {
+		fmt.Fprintf(w, "    Together %s, close to the most one request can carry; if it is refused as too large, upload fewer of these files at a time.\n", ui.Bytes(size))
+	}
+}
+
+// setTitle is what the plan calls a set of files the server recognised by
+// their names: the upload screen's title for it, such as "Bloomberg SID
+// report set".
+func setTitle(g sendGroup) string {
+	if g.guidance != nil && strings.TrimSpace(g.guidance.Title) != "" {
+		return ui.SafeLine(g.guidance.Title)
+	}
+	return "set of related reports"
+}
+
+// printSettled prints what the CLI settled itself, before asking: files
+// too large to send, those of a type firmfact does not read, and those
+// with the same bytes as another.
+func (r *uploadRun) printSettled(w io.Writer) {
+	var refused []*uploadFile
+	var unread []string
+	for _, f := range r.files {
+		switch {
+		case !f.local:
+		case f.code == "same_contents":
+		case f.outcome == outcomeSkipped:
+			unread = append(unread, f.label())
+		default:
+			refused = append(refused, f)
+		}
+	}
+	printRefusals(w, refused)
+	if len(unread) > 0 {
+		fmt.Fprintf(w, "  Left out, as firmfact does not read files of their type: %s\n", someOf(unread, 5))
+	}
+	for _, f := range r.files {
+		if f.code == "same_contents" {
+			fmt.Fprintf(w, "  Left out %s: %s\n", f.display(), f.message)
+		}
+	}
+}
+
+// withOutcome are the files of chunk with one of outcomes.
+func withOutcome(chunk []*uploadFile, outcomes ...string) []*uploadFile {
+	var out []*uploadFile
 	for _, f := range chunk {
-		if f.outcome != outcomeRefused && f.outcome != outcomeNotSent {
-			continue
+		if slices.Contains(outcomes, f.outcome) {
+			out = append(out, f)
 		}
+	}
+	return out
+}
+
+// printRefusals says why each of files is not sent, a line for each
+// reason however many files it is about. The server's sentences start
+// with the file's name ("scan.pdf: files of this type cannot be
+// uploaded ..."), so files refused for the same reason are listed before
+// the rest of the sentence: over the allowance, sixty files make one line,
+// not sixty.
+func printRefusals(w io.Writer, files []*uploadFile) {
+	var order []string
+	byReason := map[string][]*uploadFile{}
+	for _, f := range files {
 		f.listed = true
-		key := ui.SafeLine(f.message)
-		if key == "" {
-			key = "\x00" + f.label()
-		}
-		if _, ok := byMessage[key]; !ok {
+		key := refusalReason(f)
+		if _, ok := byReason[key]; !ok {
 			order = append(order, key)
 		}
-		byMessage[key] = append(byMessage[key], f)
+		byReason[key] = append(byReason[key], f)
 	}
 	for _, key := range order {
-		files := byMessage[key]
-		switch {
-		case strings.HasPrefix(key, "\x00"):
-			fmt.Fprintf(w, "  %s: refused (%s)\n", files[0].label(), ui.SafeLine(orDefault(files[0].code, "no reason given")))
-		case len(files) == 1 && strings.HasPrefix(key, files[0].label()):
-			// The server's sentences start with the file's name.
-			fmt.Fprintf(w, "  %s\n", key)
-		case len(files) == 1:
-			fmt.Fprintf(w, "  %s: %s\n", files[0].label(), key)
-		default:
-			names := make([]string, len(files))
-			for i, f := range files {
-				names[i] = f.label()
-			}
-			fmt.Fprintf(w, "  %s (%s)\n", key, someOf(names, 5))
+		files := byReason[key]
+		names := make([]string, len(files))
+		for i, f := range files {
+			names[i] = f.label()
 		}
+		if code, ok := strings.CutPrefix(key, "\x00"); ok {
+			fmt.Fprintf(w, "  %s: refused (%s)\n", someOf(names, 5), code)
+			continue
+		}
+		fmt.Fprintf(w, "  %s: %s\n", someOf(names, 5), key)
 	}
+}
+
+// refusalReason is why f is not sent: the server's sentence without the
+// file's name at its start, or its code when it gave no sentence (marked
+// with a NUL, which no sentence holds once through ui.SafeLine).
+func refusalReason(f *uploadFile) string {
+	message := ui.SafeLine(f.message)
+	if message == "" {
+		return "\x00" + ui.SafeLine(orDefault(f.code, "no reason given"))
+	}
+	if rest, ok := strings.CutPrefix(message, f.label()+": "); ok && rest != "" {
+		return rest
+	}
+	return message
 }
 
 // someOf lists the first n of names, and says how many more there are.
@@ -369,9 +437,11 @@ type uploadJSONFile struct {
 	// standard input.
 	Path string `json:"path"`
 	// Filename is what firmfact calls it.
-	Filename string          `json:"filename"`
-	Size     int64           `json:"size"`
-	SHA256   string          `json:"sha256"`
+	Filename string `json:"filename"`
+	Size     int64  `json:"size"`
+	// SHA256 is left out for a file the CLI did not read: one of a type
+	// firmfact does not read, or too large.
+	SHA256   string          `json:"sha256,omitempty"`
 	Outcome  string          `json:"outcome"`
 	Code     string          `json:"code,omitempty"`
 	Message  string          `json:"message,omitempty"`
@@ -379,7 +449,7 @@ type uploadJSONFile struct {
 }
 
 func (r *uploadRun) json() uploadJSON {
-	out := uploadJSON{Meta: uploadJSONMeta{Schema: upload.Schema}, Notes: []string{}}
+	out := uploadJSON{Meta: uploadJSONMeta{Schema: orDefault(r.schema, upload.Schema)}, Notes: []string{}}
 	if r.workspace.ID != "" {
 		ws := r.workspace
 		out.Data.Workspace = &ws
@@ -411,10 +481,29 @@ func (r *uploadRun) json() uploadJSON {
 	if n := len(r.found.Folders); n > 0 {
 		out.Notes = append(out.Notes, fmt.Sprintf("Left out %d %s; add --recursive to upload the files in %s.", n, plural(n, "folder", "folders"), plural(n, "it", "them")))
 	}
+	if n := r.found.Hidden; n > 0 {
+		out.Notes = append(out.Notes, fmt.Sprintf("Left out %d hidden %s.", n, plural(n, "file", "files")))
+	}
+	if n := r.found.Outside; n > 0 {
+		out.Notes = append(out.Notes, fmt.Sprintf("Left out %d %s that %s out of the folders named.", n, plural(n, "link", "links"), plural(n, "leads", "lead")))
+	}
 	if r.stop != nil && r.stoppedFiles() > 0 {
 		out.Notes = append(out.Notes, "Some files were not sent: "+r.stop.message+".")
 	}
+	if r.unread != nil {
+		out.Notes = append(out.Notes, "The "+r.unreadMessage()+".")
+	}
+	if r.cut {
+		out.Notes = append(out.Notes, "Stopped by an interrupt; run the same command again to send the rest: files already there are skipped.")
+	}
 	return out
+}
+
+// unreadMessage says that the documents could not be read back, and how to
+// see them later, after "the".
+func (r *uploadRun) unreadMessage() string {
+	return fmt.Sprintf("files were sent, but reading back what firmfact made of them failed (%s); see it with `%s`",
+		ui.SafeLine(r.unread.Error()), r.statusCommand(r.documentIDs()))
 }
 
 // documentJSON is doc as the server sent it, or as the CLI read it when
@@ -487,9 +576,22 @@ func (r *uploadRun) result() error {
 		failures = append(failures, "nothing was uploaded: firmfact does not read any of the files found")
 	}
 	if len(failures) > 0 {
+		if r.unread != nil {
+			failures = append(failures, "the "+r.unreadMessage())
+		}
 		return withExit(ExitFailed, errors.New(strings.Join(failures, "; ")))
 	}
 	var retry []string
+	// The read back after the upload failed: its own exit status (no
+	// longer signed in, the workspace gone), or 5 for one worth trying
+	// again, as is any the CLI cannot place.
+	status := ExitUnavailable
+	if r.unread != nil {
+		retry = append(retry, "the "+r.unreadMessage())
+		if code := exitCode(r.unread); code != ExitFailed {
+			status = code
+		}
+	}
 	if later > 0 {
 		retry = append(retry, fmt.Sprintf("%d %s not be sent now; run the command again later, and files already there are skipped", later, plural(later, "file could", "files could")))
 	}
@@ -501,7 +603,7 @@ func (r *uploadRun) result() error {
 		retry = append(retry, fmt.Sprintf("%d %s still being read after %s; check with `%s`", reading, plural(reading, "document was", "documents were"), httpx.Span(r.flags.waitTimeout), r.statusCommand(ids)))
 	}
 	if len(retry) > 0 {
-		return withExit(ExitUnavailable, errors.New(strings.Join(retry, "; ")))
+		return withExit(status, errors.New(strings.Join(retry, "; ")))
 	}
 	return nil
 }

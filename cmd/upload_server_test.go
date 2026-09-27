@@ -40,6 +40,15 @@ type uploadServer struct {
 	preflightHook func(n int, w http.ResponseWriter, r *http.Request) bool
 	// anyHook answers any request itself when it returns true.
 	anyHook func(w http.ResponseWriter, r *http.Request) bool
+	// schema is what the answers name in meta.schema.
+	schema string
+	// sets are the sets of reports the server recognises by name: from
+	// the files of a preflight without group_as_related, each set's file
+	// names, and its kind and guidance.
+	sets func(names []string) []map[string]any
+	// byName refuses a file for its name alone, when it returns a code,
+	// as the service refuses a Data License delivery's.
+	byName func(name string) (code, message string)
 
 	mu         sync.Mutex
 	docs       []*fakeDocument
@@ -53,6 +62,8 @@ type uploadServer struct {
 	related []bool
 	// requests is every request, as "METHOD /path?query".
 	requests []string
+	// preflighted is the file names of each preflight.
+	preflighted [][]string
 }
 
 // fakeDocument is a document the server holds.
@@ -91,6 +102,7 @@ func newUploadServer(t *testing.T) *uploadServer {
 		me: `[{"id":"` + demoID + `","name":"Demo","default":true,"demo":true},` +
 			`{"id":"` + acmeID + `","name":"Acme"}]`,
 		remaining: 21,
+		schema:    "document_result/1",
 		states:    map[string][]string{},
 		bySHA:     map[string]*fakeDocument{},
 		fixtures:  map[string]string{},
@@ -292,12 +304,21 @@ func (s *uploadServer) preflight(w http.ResponseWriter, r *http.Request) {
 	var files []map[string]any
 	var names []string
 	var bytes int64
+	for _, f := range req.Files {
+		names = append(names, filepath.Base(f.Name))
+	}
+	s.preflighted = append(s.preflighted, names)
 	for i, f := range req.Files {
 		entry := map[string]any{"index": i, "name": filepath.Base(f.Name), "size": f.Size, "sha256": f.SHA256, "status": "ok"}
-		names = append(names, filepath.Base(f.Name))
 		bytes += f.Size
 		existing := s.bySHA[f.SHA256]
+		code, message := "", ""
+		if s.byName != nil {
+			code, message = s.byName(f.Name)
+		}
 		switch {
+		case code != "":
+			entry["status"], entry["code"], entry["message"] = "refused", code, message
 		case !slices.Contains(supported, strings.ToLower(filepath.Ext(f.Name))):
 			entry["status"], entry["code"] = "refused", "unsupported_type"
 			entry["message"] = f.Name + ": files of this type cannot be uploaded, so it was not stored. Supported: " + strings.Join(supported, ", ") + "."
@@ -325,6 +346,9 @@ func (s *uploadServer) preflight(w http.ResponseWriter, r *http.Request) {
 			set["message"] = fmt.Sprintf("You selected %d files. Upload at most 10 at a time.", len(req.Files))
 		}
 		sets = append(sets, set)
+	}
+	if !req.GroupAsRelated && s.sets != nil {
+		sets = append(sets, s.sets(names)...)
 	}
 	answerJSON(w, http.StatusOK, encode(map[string]any{"success": true, "data": map[string]any{
 		"workspace": json.RawMessage(s.workspace),
@@ -384,7 +408,7 @@ func (s *uploadServer) accept(r *http.Request) (status int, body string) {
 	s.related = append(s.related, related)
 	return status, encode(map[string]any{"success": true,
 		"data": map[string]any{"workspace": json.RawMessage(s.workspace), "results": results, "summary": summary},
-		"meta": map[string]any{"schema": "document_result/1"}})
+		"meta": map[string]any{"schema": s.schema}})
 }
 
 // list answers ?ids= (each read of a document in progress moves it on a
@@ -413,7 +437,7 @@ func (s *uploadServer) list(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 		answerJSON(w, http.StatusOK, encode(map[string]any{"success": true,
-			"data": map[string]any{"results": results, "missing": missing}, "meta": map[string]any{"schema": "document_result/1"}}))
+			"data": map[string]any{"results": results, "missing": missing}, "meta": map[string]any{"schema": s.schema}}))
 		return
 	}
 	for i := len(s.docs) - 1; i >= 0; i-- {
@@ -422,7 +446,7 @@ func (s *uploadServer) list(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	answerJSON(w, http.StatusOK, encode(map[string]any{"success": true,
-		"data": map[string]any{"results": results}, "meta": map[string]any{"schema": "document_result/1"}}))
+		"data": map[string]any{"results": results}, "meta": map[string]any{"schema": s.schema}}))
 }
 
 func (s *uploadServer) show(w http.ResponseWriter, r *http.Request, id string) {
@@ -433,7 +457,7 @@ func (s *uploadServer) show(w http.ResponseWriter, r *http.Request, id string) {
 		answerJSON(w, http.StatusNotFound, `{"error":"Document not found","code":"NOT_FOUND"}`)
 		return
 	}
-	answerJSON(w, http.StatusOK, encode(map[string]any{"success": true, "data": d.fullEntry(), "meta": map[string]any{"schema": "document_result/1"}}))
+	answerJSON(w, http.StatusOK, encode(map[string]any{"success": true, "data": d.fullEntry(), "meta": map[string]any{"schema": s.schema}}))
 }
 
 func (s *uploadServer) byID(id string) *fakeDocument {

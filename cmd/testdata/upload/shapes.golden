@@ -43,7 +43,6 @@ chosen.pdf: invoice, published
   Contract    C-7, linked on the review page
   Variance    GBP 10.00 (0.1%) below the contract (preview)
     12  Seats
-  To review   Nothing flagged; ready to publish.
   Review      https://app.firmfact.example/accounts/1977ef5a-480b-4ea7-94ce-ce9fe4f308fd/documents/a1b2c3d4-0000-4000-8000-000000000007
 
 hidden.pdf: invoice, attached as a reference

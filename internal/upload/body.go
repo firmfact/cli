@@ -97,6 +97,21 @@ func (b *body) add(s segment) {
 // Size is the length of the whole form.
 func (b *body) Size() int64 { return b.size }
 
+// NearRequestLimit is a request's size from which it may be too large for
+// the network in front of firmfact, which the web app's uploads keep under
+// by sending larger ones in pieces. The CLI sends each request whole.
+const NearRequestLimit = 90 << 20
+
+// RequestSize is how many bytes one request that uploads files sends: the
+// files and the form around them.
+func RequestSize(files []File, opts Options) int64 {
+	b, err := newBody(files, opts)
+	if err != nil {
+		return 0
+	}
+	return b.Size()
+}
+
 // ContentType is the form's media type, with its boundary.
 func (b *body) ContentType() string { return "multipart/form-data; boundary=" + b.boundary }
 
@@ -105,8 +120,8 @@ func (b *body) ContentType() string { return "multipart/form-data; boundary=" + 
 func (b *body) String() string { return b.summary }
 
 // Open returns the form from its first byte. Each file is opened when the
-// form reaches it, read in pieces, and checked on the way against what Hash
-// found (see fileReader).
+// form reaches it, found to be the file Hash read (File.same), read in
+// pieces, and checked on the way against what Hash found (see fileReader).
 func (b *body) Open() (io.ReadCloser, error) {
 	return &bodyReader{segments: b.segments}, nil
 }
@@ -172,9 +187,15 @@ func (r *bodyReader) Read(p []byte) (int, error) {
 				r.current = bytes.NewReader(s.head)
 				continue
 			}
-			f, err := os.Open(s.file.Path)
+			f, _, err := openRegular(s.file.Path)
 			if err != nil {
 				return 0, err
+			}
+			if !s.file.same(f) {
+				// Another file in its place (a link turned elsewhere, say),
+				// or this one changed: not a byte of it goes.
+				_ = f.Close()
+				return 0, &ChangedError{Path: s.file.Path}
 			}
 			r.file = &fileReader{f: f, want: s.file, left: s.file.Size, h: sha256.New()}
 			r.current = r.file

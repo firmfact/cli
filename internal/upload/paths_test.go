@@ -118,36 +118,191 @@ func TestExpandNameWithPatternCharacters(t *testing.T) {
 	}
 }
 
-// A folder holds the files that links in it point at, but a link to a
-// folder is not followed, since it could lead back; a folder named through
-// a link is read.
+// A folder holds a link to a file in it, under the link's name, but not a
+// link that leads out of it, to a hidden file in it, or to a folder, which
+// could lead back; a folder named through a link is read. A pattern takes
+// the links it matches, as a shell's would.
 func TestExpandLinks(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		t.Skip("symbolic links need extra rights on Windows")
 	}
-	dir := tree(t, "docs/a.pdf", "elsewhere/b.pdf")
-	for _, link := range [][2]string{
+	dir := tree(t, "docs/a.pdf", "docs/sub/c.pdf", "docs/.private/key.txt", "elsewhere/b.pdf")
+	links := [][2]string{
 		{filepath.Join(dir, "elsewhere", "b.pdf"), filepath.Join(dir, "docs", "b.pdf")},
+		{filepath.Join("sub", "c.pdf"), filepath.Join(dir, "docs", "inner.pdf")},
+		{filepath.Join(dir, "docs", "a.pdf"), filepath.Join(dir, "docs", "abs.pdf")},
+		{filepath.Join(".private", "key.txt"), filepath.Join(dir, "docs", "notes.txt")},
 		{filepath.Join(dir, "docs"), filepath.Join(dir, "docs", "loop")},
 		{filepath.Join(dir, "missing.pdf"), filepath.Join(dir, "docs", "broken.pdf")},
 		{filepath.Join(dir, "docs"), filepath.Join(dir, "via")},
-	} {
+	}
+	if runtime.GOOS == "linux" {
+		links = append(links, [2]string{"/proc/self/environ", filepath.Join(dir, "docs", "env.txt")})
+	}
+	for _, link := range links {
 		if err := os.Symlink(link[0], link[1]); err != nil {
 			t.Fatal(err)
 		}
 	}
+	outside := 1
+	if runtime.GOOS == "linux" {
+		outside = 2
+	}
 	f, err := Expand([]string{"docs"}, true)
-	if err != nil || !sameList(paths(f), "docs/a.pdf", "docs/b.pdf") {
-		t.Errorf("docs = %v, %v", paths(f), err)
+	if err != nil || !sameList(paths(f), "docs/a.pdf", "docs/abs.pdf", "docs/inner.pdf", "docs/sub/c.pdf") || f.Outside != outside || f.Hidden != 2 {
+		t.Errorf("docs = %v, %d outside, %d hidden, %v", paths(f), f.Outside, f.Hidden, err)
 	}
 	f, err = Expand([]string{"via"}, true)
-	if err != nil || !sameList(paths(f), "via/a.pdf", "via/b.pdf") {
-		t.Errorf("via = %v, %v", paths(f), err)
+	if err != nil || !sameList(paths(f), "via/a.pdf", "via/abs.pdf", "via/inner.pdf", "via/sub/c.pdf") || f.Outside != outside {
+		t.Errorf("via = %v, %d outside, %v", paths(f), f.Outside, err)
 	}
 	// A pattern skips a link that leads nowhere.
 	f, err = Expand([]string{"docs/*.pdf"}, false)
-	if err != nil || !sameList(paths(f), "docs/a.pdf", "docs/b.pdf") {
+	if err != nil || !sameList(paths(f), "docs/a.pdf", "docs/abs.pdf", "docs/b.pdf", "docs/inner.pdf") {
 		t.Errorf("docs/*.pdf = %v, %v", paths(f), err)
+	}
+}
+
+// A link a folder held must still lead to the same file when it is read:
+// turned to another since, even one with the same bytes, it is refused.
+func TestVerifyALinkStillLeadsWhereItDid(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("symbolic links need extra rights on Windows")
+	}
+	dir := tree(t, "docs/a.pdf", "docs/sub/a.pdf")
+	link := filepath.Join(dir, "docs", "link.pdf")
+	if err := os.Symlink("a.pdf", link); err != nil {
+		t.Fatal(err)
+	}
+	f, err := Expand([]string{"docs"}, true)
+	if err != nil || len(f.Sources) != 3 {
+		t.Fatalf("%v, %v", paths(f), err)
+	}
+	s := f.Sources[1]
+	file, err := Hash(s.Path)
+	if err != nil || s.Verify(file) != nil {
+		t.Fatalf("the link as found: %v, %v", err, s.Verify(file))
+	}
+	if err := os.Remove(link); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(filepath.Join("sub", "a.pdf"), link); err != nil {
+		t.Fatal(err)
+	}
+	file, err = Hash(s.Path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := s.Verify(file); err == nil || !strings.Contains(err.Error(), "no longer leads to the file") {
+		t.Errorf("a link turned elsewhere: %v", err)
+	}
+	// A file named, or one a pattern found, is whatever is there.
+	if err := (Source{Path: s.Path, Named: true}).Verify(file); err != nil {
+		t.Errorf("a named file: %v", err)
+	}
+}
+
+// A wildcard in a folder's part of a pattern does not look into hidden
+// folders, as a shell's does not; one that starts with a dot does.
+func TestExpandLeavesHiddenFoldersOutOfPatterns(t *testing.T) {
+	tree(t, "public/invoice.pdf", ".private/salary.pdf", "public/~$Budget.xlsx", "public/Budget.xlsx")
+	f, err := Expand([]string{"*/*.pdf"}, false)
+	if err != nil || !sameList(paths(f), "public/invoice.pdf") || f.Hidden != 1 {
+		t.Errorf("*/*.pdf = %v, hidden %d, %v", paths(f), f.Hidden, err)
+	}
+	f, err = Expand([]string{".*/*.pdf"}, false)
+	if err != nil || !sameList(paths(f), ".private/salary.pdf") {
+		t.Errorf(".*/*.pdf = %v, %v", paths(f), err)
+	}
+	// Office's lock file beside an open workbook is hidden too, in a
+	// pattern and in a folder, unless the pattern asks for it.
+	f, err = Expand([]string{"public/*.xlsx"}, false)
+	if err != nil || !sameList(paths(f), "public/Budget.xlsx") || f.Hidden != 1 {
+		t.Errorf("public/*.xlsx = %v, hidden %d, %v", paths(f), f.Hidden, err)
+	}
+	f, err = Expand([]string{"public"}, true)
+	if err != nil || !sameList(paths(f), "public/Budget.xlsx", "public/invoice.pdf") || f.Hidden != 1 {
+		t.Errorf("public = %v, hidden %d, %v", paths(f), f.Hidden, err)
+	}
+	f, err = Expand([]string{"public/~$*"}, false)
+	if err != nil || !sameList(paths(f), "public/~$Budget.xlsx") {
+		t.Errorf("public/~$* = %v, %v", paths(f), err)
+	}
+}
+
+// Where patterns ignore case, as on Windows, *.pdf finds SCAN001.PDF, under
+// the name it has.
+func TestExpandFoldsCase(t *testing.T) {
+	tree(t, "caps/SCAN001.PDF", "caps/scan002.pdf", "CAPS2/a.Pdf")
+	f, err := Expand([]string{"caps/*.pdf"}, false)
+	if err != nil || !sameList(paths(f), "caps/scan002.pdf") {
+		t.Errorf("case counts: %v, %v", paths(f), err)
+	}
+	prev := foldCase
+	foldCase = true
+	t.Cleanup(func() { foldCase = prev })
+	f, err = Expand([]string{"caps/*.pdf", "CAPS2/*.PDF", "c[A-Z]ps/scan00[12].pdf"}, false)
+	if err != nil || !sameList(paths(f), "caps/SCAN001.PDF", "caps/scan002.pdf", "CAPS2/a.Pdf") {
+		t.Errorf("case folded: %v, %v", paths(f), err)
+	}
+	if f, err := Expand([]string{"*/*.pdf"}, false); err != nil || !sameList(paths(f), "CAPS2/a.Pdf", "caps/SCAN001.PDF", "caps/scan002.pdf") {
+		t.Errorf("*/*.pdf folded: %v, %v", paths(f), err)
+	}
+}
+
+// A pattern is tried whenever no file has that name: on Windows the name
+// is not even a valid one, which is not "not there". A folder the CLI may
+// not read is an error, not a pattern that matched nothing.
+func TestExpandTriesAPatternForAnyNameThatIsNoFile(t *testing.T) {
+	dir := tree(t, "a.pdf")
+	var none *NoMatchError
+	// Under a file rather than a folder: not "not there" either.
+	if _, err := Expand([]string{"a.pdf/*.pdf"}, false); !errors.As(err, &none) {
+		t.Errorf("a pattern below a file: %v", err)
+	}
+	if runtime.GOOS == "windows" || os.Geteuid() == 0 {
+		return
+	}
+	locked := filepath.Join(dir, "locked")
+	if err := os.Mkdir(locked, 0); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = os.Chmod(locked, 0o750) })
+	if _, err := Expand([]string{"locked/*.pdf"}, false); !errors.Is(err, fs.ErrPermission) {
+		t.Errorf("a folder that cannot be read: %v", err)
+	}
+}
+
+// A pattern matches from the root, or from a folder named as it is.
+func TestExpandPatternFolders(t *testing.T) {
+	dir := tree(t, "a/b/c.pdf")
+	abs := filepath.Join(dir, "a", "*", "*.pdf")
+	f, err := Expand([]string{abs}, false)
+	if err != nil || len(f.Sources) != 1 || f.Sources[0].Path != filepath.Join(dir, "a", "b", "c.pdf") {
+		t.Errorf("%s = %v, %v", abs, paths(f), err)
+	}
+	for dir, want := range map[string]string{"": ".", "a/": "a", string(filepath.Separator): string(filepath.Separator)} {
+		if got := globDir(dir, 0); got != want {
+			t.Errorf("globDir(%q) = %q, want %q", dir, got, want)
+		}
+	}
+	if got := globDir("C:", 2); got != "C:." {
+		t.Errorf("globDir(C:) = %q", got)
+	}
+	if got := globDir("C:/", 2); got != "C:/" {
+		t.Errorf("globDir(C:/) = %q", got)
+	}
+}
+
+// Firmfact's types, by extension and whatever its case.
+func TestReadable(t *testing.T) {
+	for name, want := range map[string]bool{
+		"a.pdf": true, "SCAN.PDF": true, "report.xlsx": true, "mail.eml": true,
+		"notes.exe": false, "Thumbs.db": false, "id_ed25519": false, "vault.kdbx": false, "a.pdf.gpg": false,
+	} {
+		if Readable(name) != want {
+			t.Errorf("Readable(%q) = %v", name, !want)
+		}
 	}
 }
 

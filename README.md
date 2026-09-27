@@ -365,10 +365,13 @@ Nothing is booked until someone publishes it there.
 ```
 
 Name files, folders with `--recursive`, or patterns such as `'*.pdf'`,
-which the CLI expands where the shell did not (Windows shells expand none).
-Hidden files are left out of folders and patterns, and so is a file there
-of a type firmfact does not read, while such a file named on its own is
-refused. `-` reads one file from standard input, and `--name` gives its
+which the CLI expands where the shell did not (Windows shells expand none,
+and there a pattern ignores case, so `*.pdf` finds `SCAN001.PDF`). Hidden
+files and folders, and the `~$` lock files Office keeps beside an open
+document, are left out of folders and patterns, and so is a file there of
+a type firmfact does not read, while such a file named on its own is
+refused. A link in a folder counts only when it leads to a file in that
+folder. `-` reads one file from standard input, and `--name` gives its
 name, extension and all: firmfact tells a file's type by its extension, and
 refuses one whose contents do not match it. Firmfact reads PDFs, PNG, JPEG,
 GIF and WebP images, Word (`.docx`) and Excel (`.xlsx`, `.xls`) files, CSV,
@@ -384,7 +387,9 @@ at most (`--wait-timeout`); on a terminal, a line says how far it has got.
 not sent again, so running the same command over a folder again is safe,
 and shows what firmfact read from it before; `--new-version` sends it all
 the same, as a new version. A file that changes while it is being sent is
-not stored.
+not stored. Should the documents be stored but reading back what firmfact
+made of them fail, the results show what is known, and the error says the
+`firmfact upload status` command that shows the rest.
 
 Each new file counts as a document of the monthly allowance. `--related`
 sends the files as one group of related documents, such as an invoice and
@@ -410,7 +415,8 @@ the command line: its `path`, `filename`, `size` and `sha256`, the
 `outcome` (`created`, `duplicate`, `in_progress`, `busy`, `refused`,
 `skipped`, `not_sent` or `failed`), a `code` and `message` saying why when
 it was not stored, and the `document` as firmfact describes it, in the
-schema `meta.schema` names (`document_result/1`). `data.summary` counts the
+schema `meta.schema` names (`document_result/1`). A file the CLI left out
+or refused without reading it has no `sha256`. `data.summary` counts the
 files by outcome and the documents by state, and `data.allowance` is the
 monthly allowance as it was before the upload.
 
@@ -421,11 +427,13 @@ firmfact upload ~/Invoices/2026-09 -r --workspace Acme --jq '.data.results[] | [
 The exit status says how it went: 0 when every file was uploaded or was
 already there, and was read (with `--no-wait`, sent); 1 when a file was
 refused, or a document could not be read or was skipped for the allowance;
-2 for a mistake on the command line, or an unnamed Demo workspace off a
-terminal; 3 when not signed in; 4 when the workspace does not exist; 5 when
-the wait ran out, or firmfact was busy or rate-limited, which a later run
-picks up; 6 when the host does not offer uploads yet. When files ended in
-more than one of these ways, 1 wins over 5.
+2 for a mistake on the command line, such as a pattern or folders with no
+files to upload, or an unnamed Demo workspace off a terminal; 3 when not
+signed in; 4 when the workspace does not exist; 5 when the wait ran out, or
+firmfact was busy or rate-limited, which a later run picks up; 6 when the
+host does not offer uploads yet. When files ended in more than one of these
+ways, 1 wins over 5. With `--json`, the results are printed whatever the
+exit status once anything was sent, Ctrl-C included.
 
 ### Exit codes
 
@@ -579,8 +587,13 @@ scripts). A bug report needs its output.
 - `login` uses OAuth 2 authorisation code with PKCE and a loopback redirect;
   your password never passes through the CLI.
 - `firmfact upload` sends only the files you name, and those in the folders
-  you name with `--recursive`, and prints its plan before it sends any. A
-  file read from standard input is copied to the system's temporary
+  you name with `--recursive`, and prints its plan before it sends any. The
+  plan's request carries the name, size and SHA-256 checksum of each file,
+  but a file a folder or a pattern found is not read, and not named to the
+  service, when firmfact does not read its type, nor is any file larger
+  than firmfact takes. A link in a folder that leads out of it is left
+  out, and each file must still be the one that was read when it is sent.
+  A file read from standard input is copied to the system's temporary
   directory while it is sent, and removed after.
 - `signup` takes a password only at its prompt, without echo, or on standard
   input with `--password-stdin`, never as an argument, where other users of

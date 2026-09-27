@@ -110,7 +110,11 @@ func printDocument(w io.Writer, name string, doc *upload.Document, duplicate boo
 			}
 		}
 	}
-	printReview(b, doc.Review)
+	// What the review asks matters while the document waits for it; one
+	// published or attached is past it.
+	if doc.State == upload.StateReadyForReview {
+		printReview(b, doc.Review)
+	}
 	for _, note := range serverNotes(doc) {
 		b.line("Note", ui.SafeLine(note))
 	}

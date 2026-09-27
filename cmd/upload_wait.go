@@ -156,34 +156,64 @@ func updateStates(docs []*upload.Document, list *upload.DocumentList) {
 	}
 }
 
+// fullReadBatch is how many documents one full read asks for. The server
+// works out a variance preview and a review for each, and a proxy on the
+// way gives up on an answer after 30 s, so a read asks for a few at a
+// time rather than the 100 a read may name.
+const fullReadBatch = 20
+
+// fullReadAttempts is how often a full read is tried when it fails in a way
+// that may pass.
+const fullReadAttempts = 3
+
 // readResults reads back, in full, the documents of docs that are the
 // caller's own and finished: what was read, the contract match, the
 // variance preview and what needs review. Someone else's document is its
-// state and link only, which docs has already.
-func readResults(ctx context.Context, uc *upload.Client, workspace string, docs []*upload.Document) error {
+// state and link only, which docs has already. It returns the schema the
+// server named; after an error, the documents read before it are in docs.
+func readResults(ctx context.Context, uc *upload.Client, workspace string, docs []*upload.Document) (schema string, err error) {
 	var ids []string
 	for _, d := range docs {
 		if d.Own && !upload.InProgress(d.State) && d.State != stateMissing {
 			ids = append(ids, d.ID)
 		}
 	}
-	if len(ids) == 0 {
-		return nil
-	}
-	list, err := uc.Documents(ctx, workspace, ids, upload.Full)
-	if err != nil {
-		return err
-	}
-	byID := map[string]upload.Document{}
-	for _, d := range list.Results {
-		byID[d.ID] = d
-	}
-	for _, d := range docs {
-		if got, ok := byID[d.ID]; ok {
-			*d = got
+	for len(ids) > 0 {
+		batch := ids[:min(len(ids), fullReadBatch)]
+		ids = ids[len(batch):]
+		list, err := readFull(ctx, uc, workspace, batch)
+		if err != nil {
+			return schema, err
+		}
+		schema = orDefault(list.Schema, schema)
+		byID := map[string]upload.Document{}
+		for _, d := range list.Results {
+			byID[d.ID] = d
+		}
+		for _, d := range docs {
+			if got, ok := byID[d.ID]; ok {
+				*d = got
+			}
 		}
 	}
-	return nil
+	return schema, nil
+}
+
+// readFull reads the documents with ids in full, and again after a failure
+// that may pass (no answer, a server error, a rate limit), up to
+// fullReadAttempts times.
+func readFull(ctx context.Context, uc *upload.Client, workspace string, ids []string) (*upload.DocumentList, error) {
+	var retry time.Duration
+	for attempt := 1; ; attempt++ {
+		list, err := uc.Documents(ctx, workspace, ids, upload.Full)
+		if err == nil || ctx.Err() != nil || !transientError(err) || attempt == fullReadAttempts {
+			return list, err
+		}
+		retry = nextUploadRetry(retry, uploadPollInterval)
+		if !ui.Pause(ctx, retry) {
+			return nil, ctx.Err()
+		}
+	}
 }
 
 // countDocuments is "1 document" or "n documents".
