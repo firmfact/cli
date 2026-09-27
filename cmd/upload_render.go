@@ -323,6 +323,7 @@ func (r *uploadRun) printResults() {
 	if n := len(inProgress(r.documents())); r.flags.noWait && n > 0 {
 		fmt.Fprintf(w, "Firmfact reads %s meanwhile; see what it read with `%s`.\n", plural(n, "it", "them"), r.statusCommand(ids))
 	}
+	r.printVarianceSteps()
 }
 
 // printProblem is the block of a file that was not stored on its way.

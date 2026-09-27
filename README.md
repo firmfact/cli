@@ -362,7 +362,18 @@ LSEG-2026-09.pdf: invoice, ready for review
   To review   Line 3 (Exchange fees): choose a contract item or skip it.
   Review      https://firmfact.com/accounts/.../documents/...
 Nothing is booked until someone publishes it there.
+
+Next steps for LSEG-2026-09.pdf, EUR 1,550.00 (14.2%) above the contract:
+  firmfact open https://firmfact.com/accounts/.../documents/...  (go through the variance on its review page)
+  firmfact contract-items list --query "Workspace Pro Licence" --workspace Acme  (the contract item line 1 is compared with)
+  firmfact analyze cost-trends --entity-type vendor --entity-name LSEG --monthly --workspace Acme  (the vendor's costs, month by month)
 ```
+
+At a terminal, an invoice whose preview shows a variance ends the results
+with the commands that follow it up, as above: its review page, the
+contract item of the line that differs most, and how the vendor's costs
+moved month by month. A batch gets them for its first invoice with a
+variance, and a count of the others. Scripts and `--json` get none.
 
 A spreadsheet or an HR file has a line for each type of record in it: how
 many rows of that type firmfact read, and how many of them publishing would

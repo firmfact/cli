@@ -52,7 +52,9 @@ func withServerTools(t *testing.T) []mcp.Tool {
 // hints and the README use: words between blanks, double or single quotes
 // around a word with blanks in it, and a word starting with # beginning a
 // comment. A pipe or a redirection ends the command too: what follows is
-// the shell's.
+// the shell's. So does a word that starts with a bracket, as the reason
+// after a next step in the output the README shows: to a shell, it would
+// be a syntax error.
 func commandWords(t *testing.T, line string) []string {
 	t.Helper()
 	var words []string
@@ -73,7 +75,7 @@ func commandWords(t *testing.T, line string) []string {
 				word.Reset()
 				inWord = false
 			}
-		case (r == '#' || r == '|' || r == '>' || r == '<') && !inWord:
+		case (r == '#' || r == '|' || r == '>' || r == '<' || r == '(') && !inWord:
 			return words
 		default:
 			word.WriteRune(r)

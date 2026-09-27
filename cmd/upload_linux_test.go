@@ -173,3 +173,66 @@ func TestUploadStandardInputFromATerminal(t *testing.T) {
 		}
 	}
 }
+
+// At a terminal, an invoice whose preview shows a variance ends the upload
+// with the steps that follow it up: its review page, the contract item of
+// the line that differs most, and the vendor's costs month by month, in
+// the workspace the upload named. With --json there are none.
+func TestUploadShowsVarianceStepsOnATerminal(t *testing.T) {
+	isolate(t)
+	fastUploadPolls(t)
+	t.Setenv("TERM", "dumb")
+	t.Setenv("NO_COLOR", "1")
+	s := newUploadServer(t)
+	onServerHost(s)
+	if err := saveToolCache(s.URL(), serverTools(t)); err != nil {
+		t.Fatal(err)
+	}
+	uploadDir(t, "LSEG-2026-09.pdf")
+
+	shown := runAttended(t, 100, "--host", s.URL(), "--workspace", "Acme", "upload", "LSEG-2026-09.pdf")
+	want := "Nothing is booked until someone publishes it there.\n" +
+		"\n" +
+		"Next steps for LSEG-2026-09.pdf, EUR 1,550.00 (14.2%) above the contract:\n" +
+		"  firmfact open " + s.URL() + "/accounts/" + acmeID + "/documents/423a2262-85dd-4cf1-9b51-60c7bbf2ff7d  (go through the variance on its review page)\n" +
+		`  firmfact contract-items list --query "Workspace Pro Licence" --workspace Acme  (the contract item line 1 is compared with)` + "\n" +
+		"  firmfact analyze cost-trends --entity-type vendor --entity-name LSEG --monthly --workspace Acme  (the vendor's costs, month by month)\n"
+	if !strings.HasSuffix(shown, want) {
+		t.Errorf("the terminal showed\n%s\nwant it to end with\n%s", shown, want)
+	}
+
+	if shown := runAttended(t, 100, "--host", s.URL(), "--workspace", "Acme", "--json", "upload", "LSEG-2026-09.pdf"); strings.Contains(shown, "Next step") {
+		t.Errorf("with --json the terminal showed %q", shown)
+	}
+}
+
+// A batch gets the steps for its first invoice with a variance, in the
+// order of the command line, and a count of the others.
+func TestUploadShowsVarianceStepsForTheFirstOfABatch(t *testing.T) {
+	isolate(t)
+	fastUploadPolls(t)
+	t.Setenv("TERM", "dumb")
+	t.Setenv("NO_COLOR", "1")
+	s := newUploadServer(t)
+	const octoberID = "5e1d0c9b-8a7f-4e6d-9c5b-4a3f2e1d0c9b"
+	s.fixtures["LSEG-2026-10.pdf"] = strings.NewReplacer(
+		"423a2262-85dd-4cf1-9b51-60c7bbf2ff7d", octoberID, "LSEG-2026-09.pdf", "LSEG-2026-10.pdf",
+	).Replace(s.fixtures["LSEG-2026-09.pdf"])
+	onServerHost(s)
+	if err := saveToolCache(s.URL(), serverTools(t)); err != nil {
+		t.Fatal(err)
+	}
+	names := []string{"BBG-88123.pdf", "LSEG-2026-10.pdf", "LSEG-2026-09.pdf"}
+	uploadDir(t, names...)
+
+	shown := runAttended(t, 100, append([]string{"--host", s.URL(), "--workspace", "Acme", "upload"}, names...)...)
+	_, steps, ok := strings.Cut(shown, "Nothing is booked until someone publishes it there.\n\n")
+	want := "Next steps for LSEG-2026-10.pdf, EUR 1,550.00 (14.2%) above the contract:\n" +
+		"  firmfact open " + s.URL() + "/accounts/" + acmeID + "/documents/" + octoberID + "  (go through the variance on its review page)\n" +
+		`  firmfact contract-items list --query "Workspace Pro Licence" --workspace Acme  (the contract item line 1 is compared with)` + "\n" +
+		"  firmfact analyze cost-trends --entity-type vendor --entity-name LSEG --monthly --workspace Acme  (the vendor's costs, month by month)\n" +
+		"1 more invoice shows a variance too.\n"
+	if !ok || steps != want {
+		t.Errorf("the terminal showed\n%s\nwant it to end with\n%s", shown, want)
+	}
+}

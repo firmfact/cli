@@ -25,9 +25,24 @@ var (
 	stepVendors      = nextStep{"vendors list", "list_vendors", "start with who you pay"}
 	stepWorkspaces   = nextStep{"workspaces status", "", "see how far the Demo workspace is"}
 
+	// The follow-ups of an invoice whose preview shows a variance, which
+	// uploadRun.varianceSteps completes with the invoice's review link, a
+	// contract item's name and the vendor's.
+	stepReviewPage   = nextStep{"open", "", "go through the variance on its review page"}
+	stepContractItem = nextStep{"contract-items list", "list_contract_items", "the contract item a line is compared with"}
+	stepVendorTrend  = nextStep{"analyze cost-trends --entity-type vendor", "analyze_cost_trends", "the vendor's costs, month by month"}
+
 	// allNextSteps is every hint above, for that test.
-	allNextSteps = []nextStep{stepAnalyzeSpend, stepAllocations, stepAsk, stepVendors, stepWorkspaces}
+	allNextSteps = []nextStep{stepAnalyzeSpend, stepAllocations, stepAsk, stepVendors, stepWorkspaces,
+		stepReviewPage, stepContractItem, stepVendorTrend}
 )
+
+// with is step with words added to its command: the link, name or flags
+// that make it about one thing.
+func (s nextStep) with(words ...string) nextStep {
+	s.command = strings.Join(append([]string{s.command}, words...), " ")
+	return s
+}
 
 // stepAfterTool picks the follow-up for a workspace command: lookups lead to
 // analysis, analysis leads to a question.
@@ -49,14 +64,21 @@ func (a *App) printNextStep(step nextStep) {
 	if !a.attended() {
 		return
 	}
-	if step.tool != "" {
-		host, err := a.Host()
-		if err != nil || !toolCached(host, step.tool) {
-			return
-		}
+	if !a.offered(step) {
+		return
 	}
 	m := a.Mode()
 	fmt.Fprintf(a.Out, "\n%s %s  %s\n", m.Dim("Next step:"), m.Orange(a.Name+" "+step.command), m.Dim("("+step.why+")"))
+}
+
+// offered reports whether the host offers the tool step runs, as far as its
+// cached tool list says; a step that needs no tool always is.
+func (a *App) offered(step nextStep) bool {
+	if step.tool == "" {
+		return true
+	}
+	host, err := a.Host()
+	return err == nil && toolCached(host, step.tool)
 }
 
 func toolCached(host, tool string) bool {

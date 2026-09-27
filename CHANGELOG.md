@@ -57,6 +57,10 @@ change with it, so they are not listed here.
   never told of it.
 - `upload status` lists your recent uploads, or shows one in full, and
   `--wait` waits until it is read.
+- At a terminal, an upload whose invoice shows a variance ends with the
+  commands that follow it up: `open` with its review link,
+  `contract-items list` for the contract item of the line that differs
+  most, and `analyze cost-trends` for the vendor's costs month by month.
 - A command that writes to a workspace says so in its help, and one that may
   delete or overwrite data asks first, or takes `--yes`.
 - Output for people and for scripts: tables that fit the terminal,

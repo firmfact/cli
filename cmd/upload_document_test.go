@@ -165,10 +165,12 @@ d.pdf: not sent
 // endpoints send and so, for all the CLI knows, a compromised or spoofed
 // server, through everything that shows one to a person: its block, as an
 // upload of the caller's and as someone else's, its row of a batch's
-// table and the states a batch sums up. No terminal control and no
-// character that turns text around gets through, and no entry makes the
-// CLI fail. `go test` runs the seeds, the fixtures in testdata/upload and
-// every input in testdata/fuzz; to fuzz it here:
+// table, the states a batch sums up, and the next steps for an invoice
+// with a variance. No terminal control and no character that turns text
+// around gets through, no entry makes the CLI fail, and no entry puts a
+// word of its own into a next step's command line (assertFollowUps). `go
+// test` runs the seeds, the fixtures in testdata/upload and every input in
+// testdata/fuzz; to fuzz it here:
 //
 //	go test -run '^$' -fuzz '^FuzzDocumentBlock$' -fuzztime 1m ./cmd
 func FuzzDocumentBlock(f *testing.F) {
@@ -196,6 +198,11 @@ func FuzzDocumentBlock(f *testing.F) {
 	}
 	f.Add(hostileEntry)
 	f.Add(`{"state":"ready_for_review","read":{"amounts":{"total":1e400},"lines":[{"quantity":"x"}]},"variance":{"status":"variance","amount":"-0","lines":[{"line":-5}]}}`)
+	// Names and links that would add words to a next step's command line.
+	f.Add(`{"url":"https://firmfact.example/documents/1\" --host \"https://evil.example","read":{"vendor":{"status":"linked","linked_to":"-rf \"$(id)\""}},` +
+		`"variance":{"status":"variance","amount":"1","lines":[{"line":1,"amount":"1","item":{"name":"Pro\" --workspace \"Demo"}},{"line":2,"amount":"-2","item":{"name":"--host=https://evil.example"}}]}}`)
+	f.Add(`{"url":"/accounts/x/documents/1?next=https://evil.example#top","read":{"vendor":{"name":"#1 (Ltd)","status":"linked"}},` +
+		`"variance":{"status":"variance","amount":"0","lines":[{"line":3,"amount":"x","item":{"name":" O'Brien & Co. "}}]}}`)
 	// An exponent that big.Rat would spend minutes and gigabytes on.
 	f.Add(`{"read":{"currency":"EUR","amounts":{"total":"1e999999999"}},"contract_match":{"status":"linked","score":1e999999999}}`)
 	f.Fuzz(func(t *testing.T, entry string) {
@@ -214,5 +221,6 @@ func FuzzDocumentBlock(f *testing.F) {
 				t.Errorf("a line with characters a terminal acts on: %q (escaped %q)", line, safe)
 			}
 		}
+		assertFollowUps(t, &doc)
 	})
 }
