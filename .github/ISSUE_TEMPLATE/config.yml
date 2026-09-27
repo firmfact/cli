@@ -1,0 +1,7 @@
+# Issues come through the bug and feature forms, which ask for what a report
+# needs. A security report never becomes a public issue.
+blank_issues_enabled: false
+contact_links:
+  - name: Report a security vulnerability
+    url: https://github.com/firmfact/cli/security/advisories/new
+    about: Privately, through GitHub, never in a public issue. Or email security@firmfact.com; see SECURITY.md.

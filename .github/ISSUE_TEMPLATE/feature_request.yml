@@ -1,0 +1,31 @@
+name: Feature request
+description: An idea for the CLI.
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Workspace commands, their flags and the data they return come from the firmfact service, so a new workspace command is a change to the service rather than to the CLI. Such ideas are welcome here too; say that it is about the service. What the CLI does with them, such as how it prints an answer, belongs here in any case.
+  - type: textarea
+    id: problem
+    attributes:
+      label: What you are trying to do
+      description: The task, and what gets in the way today.
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: What you would like
+      description: >-
+        How the CLI could help: a command line you would like to type, or the
+        output you would like to see. Say so if it changes `--json` output, an
+        exit status or an existing flag, as scripts depend on those (see
+        CONTRIBUTING.md).
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: What you do instead
+      description: Workarounds, or other ways you have tried.

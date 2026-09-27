@@ -1,0 +1,42 @@
+{
+  "threshold": 0.0,
+  "contract_id": null,
+  "vendor_id": null,
+  "total_unallocated_cost": 10865.7,
+  "currency": "USD",
+  "data": [
+    {
+      "contract_item_id": "58ebe85e-cdaf-4720-926f-3295eae25c1c",
+      "contract_item_name": "S&P Capital IQ Pro - Research Bundle",
+      "contract_id": "abfbbf70-2eb5-42c5-90d1-da1735452123",
+      "contract_name": "S&P Global Enterprise Data Agreement 2025",
+      "vendor_id": "06453dc9-082e-4779-bc7e-0edd9cc5ccb2",
+      "vendor_name": "S&P Global Inc.",
+      "total_quantity": "15.0",
+      "allocated_quantity": "13.0",
+      "unallocated_quantity": "2.0",
+      "unallocated_percentage": "13.3",
+      "monthly_cost": 30307.251978,
+      "unallocated_cost": 4040.97,
+      "currency": "USD"
+    },
+    {
+      "contract_item_id": "42241dd1-e856-4890-8a89-ec31cd2d0060",
+      "contract_item_name": "ICE Connect Workstation",
+      "contract_id": "d324f1ff-9698-4479-a311-8269f7bf969f",
+      "contract_name": "ICE Market Data Master Agreement 2025",
+      "vendor_id": "7c99e03e-f8d1-4915-b3eb-9acf6f23c1d2",
+      "vendor_name": "ICE Data Services",
+      "total_quantity": "8.0",
+      "allocated_quantity": "6.0",
+      "unallocated_quantity": "2.0",
+      "unallocated_percentage": "25.0",
+      "monthly_cost": 10391.057821,
+      "unallocated_cost": 2597.76,
+      "currency": "USD"
+    }
+  ],
+  "meta": {
+    "total": 2
+  }
+}

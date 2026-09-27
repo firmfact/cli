@@ -1,0 +1,142 @@
+allocations list  (list_allocations, reads)
+  --all bool
+  --columns stringSlice
+  --fields stringArray
+  --include-incoming bool
+  --limit int
+  --page int
+  --query string
+  --wide bool
+  --yes bool  hidden
+analyze allocations  (analyze_allocations, reads)
+  --analysis-type string  required
+  --columns stringSlice
+  --contract-item-id string
+  --limit int
+  --min-count int
+  --monthly bool
+  --party-name string
+  --party-type string
+  --product-id string
+  --product-name string
+  --wide bool
+  --yes bool  hidden
+analyze cost-trends  (analyze_cost_trends, reads)
+  --calculation-type string
+  --columns stringSlice
+  --entity-id string
+  --entity-name string
+  --entity-type string  required
+  --include-insights bool
+  --monthly bool
+  --months-back int
+  --months-forward int
+  --wide bool
+  --yes bool  hidden
+analyze utilization  (analyze_utilization, reads)
+  --columns stringSlice
+  --contract-id string
+  --monthly bool
+  --show-underutilized bool
+  --vendor-id string
+  --wide bool
+  --yes bool  hidden
+applications list  (list_applications, reads)
+  --all bool
+  --columns stringSlice
+  --fields stringArray
+  --limit int
+  --page int
+  --query string
+  --wide bool
+  --yes bool  hidden
+chat-with-workspace  (chat_with_workspace, writes)
+  --columns stringSlice
+  --message string  required
+  --thread-id string
+  --wide bool
+  --yes bool  hidden
+contract-items list  (list_contract_items, reads)
+  --all bool
+  --columns stringSlice
+  --fields stringArray
+  --limit int
+  --page int
+  --query string
+  --wide bool
+  --yes bool  hidden
+contracts list  (list_contracts, reads)
+  --all bool
+  --columns stringSlice
+  --fields stringArray
+  --limit int
+  --page int
+  --query string
+  --wide bool
+  --yes bool  hidden
+cost-centers list  (list_cost_centers, reads)
+  --all bool
+  --columns stringSlice
+  --fields stringArray
+  --limit int
+  --page int
+  --query string
+  --wide bool
+  --yes bool  hidden
+currencies list  (list_currencies, reads)
+  --all bool
+  --columns stringSlice
+  --fields stringArray
+  --limit int
+  --page int
+  --query string
+  --wide bool
+  --yes bool  hidden
+platforms list  (list_platforms, reads)
+  --all bool
+  --columns stringSlice
+  --fields stringArray
+  --limit int
+  --page int
+  --query string
+  --wide bool
+  --yes bool  hidden
+product-groups list  (list_product_groups, reads)
+  --all bool
+  --columns stringSlice
+  --fields stringArray
+  --limit int
+  --page int
+  --query string
+  --wide bool
+  --yes bool  hidden
+products list  (list_products, reads)
+  --all bool
+  --columns stringSlice
+  --fields stringArray
+  --limit int
+  --page int
+  --query string
+  --wide bool
+  --yes bool  hidden
+projects list  (list_projects, reads)
+  --all bool
+  --columns stringSlice
+  --fields stringArray
+  --limit int
+  --page int
+  --query string
+  --wide bool
+  --yes bool  hidden
+vendors list  (list_vendors, reads)
+  --all bool
+  --columns stringSlice
+  --fields stringArray
+  --limit int
+  --page int
+  --query string
+  --wide bool
+  --yes bool  hidden
+
+No command:
+  list_workspaces: `firmfact workspaces` is reserved for the CLI

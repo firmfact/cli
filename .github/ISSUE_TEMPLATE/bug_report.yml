@@ -1,0 +1,96 @@
+name: Bug report
+description: Something in the CLI does not work as it should.
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for reporting a bug. A security issue does not belong here: report it privately, as [SECURITY.md](https://github.com/firmfact/cli/blob/main/SECURITY.md) says.
+
+        **This issue is public.** Before you paste anything, take out what is private: your email address and name, your firm's name, workspace names and ids, host names other than firmfact.com, user names in paths, and any data from your workspaces. The CLI never prints a token, but check what you paste all the same.
+  - type: textarea
+    id: version
+    attributes:
+      label: Version
+      description: The output of `firmfact version`, which names the commit, platform and install method too.
+      placeholder: |
+        firmfact 0.4.0
+          commit    0123456789abcdef0123456789abcdef01234567
+          committed 27 Sep 2026 08:01 UTC
+          go        go1.27.1
+          platform  darwin/arm64
+          install   homebrew
+          latest    0.4.0 (this version)
+      render: text
+    validations:
+      required: true
+  - type: dropdown
+    id: os
+    attributes:
+      label: Operating system
+      options:
+        - macOS
+        - Windows
+        - Linux
+        - Other
+    validations:
+      required: true
+  - type: input
+    id: os-version
+    attributes:
+      label: Operating system version and processor
+      placeholder: macOS 15.4 on Apple silicon, Windows 11 on x64, Ubuntu 24.04 on arm64
+  - type: dropdown
+    id: install-method
+    attributes:
+      label: How you installed the CLI
+      options:
+        - Homebrew
+        - Scoop
+        - A release archive, by hand
+        - go install
+        - Built from a checkout
+        - Other
+    validations:
+      required: true
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened
+      description: The command you ran, what you expected, and what happened instead, with the error in full. Keep the request id at the end of an error, if there is one; it helps us find the request in our logs.
+      placeholder: I ran `firmfact vendors list --json` and expected ...
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: What someone else would do to see the same thing, if it does not happen every time.
+  - type: textarea
+    id: doctor
+    attributes:
+      label: Output of `firmfact doctor`
+      description: >-
+        Run it with the same `--host`, `--profile` and environment variables
+        as the command that failed. It shows your email address, the host and
+        paths on your machine: replace anything private before you paste it,
+        say with `jan@yourfirm.example` for your address.
+      render: text
+    validations:
+      required: true
+  - type: textarea
+    id: debug
+    attributes:
+      label: Output with `--debug`
+      description: >-
+        Optional: the command that failed, run again with `--debug`. Tokens,
+        codes and passwords are redacted, but the host and the arguments you
+        sent are not; take out anything private.
+      render: text
+  - type: checkboxes
+    id: redacted
+    attributes:
+      label: Before you submit
+      options:
+        - label: I have taken my email address, workspace names and anything else private out of what I pasted.
+          required: true

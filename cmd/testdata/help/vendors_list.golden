@@ -1,0 +1,28 @@
+List the user's market-data vendors / suppliers (Bloomberg, Refinitiv/LSEG, FactSet, S&P, ICE, etc.) with optional name search. Use to find a vendor or its id. Default fields include cost (the six months either side of today, cash basis) and monthly_cost (the current month, accrual basis). Both are in the workspace base currency, which is not the entity's own invoicing currency shown in currency_userdef_id. For a spend figure over a period you choose, use analyze_cost_trends.
+
+Usage:
+  ff vendors list [flags]
+
+Examples:
+  ff vendors list
+
+Flags:
+      --all                  fetch every page, 200 rows at a time; with --json, one JSON row per line (NDJSON)
+      --columns strings      the columns to print, in order (comma-separated); where the tool takes fields, also the fields it sends
+      --fields stringArray   Fields to return. For fast name/id lookups use ["name", "temporal_id", "userdef_id"] to skip cost calculations. Omit to include the default fields and available cost figures. (repeatable, or comma-separated)
+  -h, --help                 help for list
+      --limit int            Maximum number of records to return. (default: 100) (from 1 to 200)
+      --page int             Page number. Keep query, fields and limit unchanged when fetching subsequent pages. (default: 1) (at least 1)
+      --query string         Search term matched against the record name.
+      --wide                 print every cell whole instead of fitting the table to the terminal
+
+Global Flags:
+      --debug              log each request and answer on stderr, with secrets redacted (or set FIRMFACT_DEBUG=1)
+      --format format      output format: table, json, csv or tsv (default: table; csv and tsv print a workspace command's rows)
+      --host string        Firmfact host (default: FIRMFACT_HOST, else the profile's, else https://firmfact.com); localhost:<port> for local development
+      --insecure-http      allow plain http to a host other than this machine (your token travels unencrypted)
+      --jq expression      filter the JSON output with a jq expression, such as '.data[].name'; implies --json
+      --json               print machine-readable JSON (the same as --format json)
+      --profile string     profile to use, one that exists (default: FIRMFACT_PROFILE, else the current profile)
+      --timeout duration   limit for each request, such as 90s (default: 60s, 90s for workspace commands and 5m for a chat, and 30s for the server to start answering; or set FIRMFACT_TIMEOUT)
+      --workspace string   workspace id or name (default: FIRMFACT_WORKSPACE, else the profile's workspace)

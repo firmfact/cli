@@ -1,0 +1,157 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+# Nothing by default; each job asks for what it needs. Every `uses:` is
+# pinned to a full commit SHA, with the release it came from in the comment.
+permissions: {}
+
+# A newer push to a pull request cancels the run for the older one. Every
+# other run has a group of its own, so each commit on main gets a result.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: true
+
+jobs:
+  # Every platform the CLI is released for. release.yml's test job repeats
+  # the Linux checks on a tagged commit before anything is built; keep the
+  # two in step.
+  test:
+    strategy:
+      # A failure on one platform says nothing about the others; see them all.
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    defaults:
+      run:
+        # PowerShell would split -coverprofile=cover.out at the dot.
+        shell: bash
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6.5.0
+        with:
+          go-version-file: go.mod
+      - name: go vet
+        run: go vet ./...
+      - name: go test
+        run: go test -race -shuffle=on -coverpkg=./... -coverprofile=cover.out ./...
+      # On Linux, where no test skips for its platform. The floors, and why
+      # they are where they are, are in .github/coverage-gate, which
+      # release.yml's test job runs too.
+      - name: coverage
+        if: runner.os == 'Linux'
+        run: .github/coverage-gate cover.out
+
+  lint:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6.5.0
+        with:
+          go-version-file: go.mod
+      - name: gofmt
+        run: test -z "$(gofmt -l .)"
+      # Linters and their settings are in .golangci.yml.
+      - uses: golangci/golangci-lint-action@ba0d7d2ec06a0ea1cb5fa41b2e4a3ab91d21278a # v9.3.0
+        with:
+          # Exact: a golangci-lint upgrade is a reviewed change. It must be
+          # built with a Go at least as new as the one in go.mod.
+          # CONTRIBUTING.md names the same version; keep the two in step.
+          version: v2.14.0
+      - name: go.mod and go.sum are tidy and verified
+        run: go mod tidy -diff && go mod verify
+
+  # Builds every archive, checksum and SBOM a release would, so a broken
+  # .goreleaser.yaml shows up here rather than on a tag, checks that a second
+  # build gives the same archives, and keeps them for a week for anyone who
+  # wants to try a build. Signing is skipped because the key is a secret of
+  # the release environment only.
+  release-config:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6.5.0
+        with:
+          go-version-file: go.mod
+          # As in release.yml: what GoReleaser builds comes from a clean
+          # module and build cache, never one a pull request wrote.
+          cache: false
+      # syft in its container, as release.yml runs it (.github/sbom/syft).
+      - name: syft in a container
+        run: |
+          echo "$GITHUB_WORKSPACE/.github/sbom" >> "$GITHUB_PATH"
+          .github/sbom/syft version
+      - uses: goreleaser/goreleaser-action@f06c13b6b1a9625abc9e6e439d9c05a8f2190e94 # v7.2.3
+        with:
+          distribution: goreleaser
+          # The exact version release.yml uses.
+          version: v2.18.2
+          install-only: true
+      - name: goreleaser check
+        run: goreleaser check
+      # As release.yml makes them; the archives need them.
+      - name: completions and man pages
+        run: go run ./internal/gendocs
+      - name: goreleaser snapshot
+        run: goreleaser release --snapshot --clean --skip=publish,sign
+      # Whoever builds a commit with the same Go and GoReleaser must get
+      # byte-identical archives, or checksums.txt cannot be checked without
+      # trusting our build. So build again as another machine would: every
+      # file with a new mtime and group write, a looser umask, another time
+      # zone and a cold build cache, and the completions and man pages made
+      # again. SBOM lines are left out, as syft stamps each SBOM with the
+      # time and a random document namespace; grep fails the step should no
+      # archive line be left to compare.
+      - name: archives are reproducible
+        run: |
+          grep -v '\.sbom\.json$' dist/checksums.txt > "$RUNNER_TEMP/first.txt"
+          find . -path ./.git -prune -o -type f -exec touch {} + -exec chmod g+w {} +
+          umask 0002
+          export TZ=America/New_York GOCACHE="$RUNNER_TEMP/gocache"
+          go run ./internal/gendocs
+          goreleaser release --snapshot --clean --skip=publish,sign
+          grep -v '\.sbom\.json$' dist/checksums.txt | diff "$RUNNER_TEMP/first.txt" -
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: dist
+          path: dist/
+          if-no-files-found: error
+          retention-days: 7
+
+  # Static analysis of these workflows; see https://docs.zizmor.sh.
+  zizmor:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          persist-credentials: false
+      - uses: zizmorcore/zizmor-action@cc914d7f3750a2d13d75c7f184a1060aa0e9d482 # v0.6.4
+        with:
+          version: 1.30.1
+          # Report findings as annotations and fail the job; uploading SARIF
+          # instead would need security-events: write.
+          advanced-security: false
+          annotations: true

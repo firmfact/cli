@@ -1,0 +1,3 @@
+# LF everywhere, Windows checkouts included: gofmt and the golden files the
+# tests compare against expect it.
+* text=auto eol=lf

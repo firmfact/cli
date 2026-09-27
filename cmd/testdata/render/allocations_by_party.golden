@@ -1,0 +1,11 @@
+Total monthly cost:     €3,439.84
+Analysis type:          by_party
+Distinct holder count:  1
+Party type:             PersonParty
+Search term:            Clara
+Total allocations:      2
+Total quantity:         2
+
+MONTHLY_COST  ALLOCATION_ID                         APPLICATION_ID  APPLICATION_NAME  CONTRACT_ID                           CONTRACT_ITEM_ID                      CONTRACT_NAME                              COST_CENTER_ID  COST_CENTER_NAME                                   COST_CENTER_SOURCE  CURRENCY_SYMBOL  DIRECTION  PARTY_ID                              PARTY_NAME   PARTY_TYPE   PRODUCT_NAME                PROJECT_ID                            PROJECT_NAME               QUANTITY  RECIPIENT_NAME  SOURCE_ID                             SOURCE_NAME                           SOURCE_TYPE   VALID_FROM  VALID_TO  VENDOR_ID                             VENDOR_NAME             WEIGHT
+    1,419.36  1f243bbc-9b3f-4dca-a080-24a0136177df                                    bfab4c78-eb06-4150-af62-7dd76a531c71  cec7d7df-33e8-4840-a339-665f853574cd  SID 234508                                                 Research Cost Centre (inherited from Clara Weiss)  inherited           €                direct     fb28f221-52ad-4a56-9d49-e86a167d6b07  Clara Weiss  PersonParty  Bloomberg Anywhere          32462c67-ad03-4d62-8838-e27741874e61  Cloud Data Lake Migration       1.0  Clara Weiss     cec7d7df-33e8-4840-a339-665f853574cd  Bloomberg Anywhere                    ContractItem  2023-07-01            04ef42cd-840e-4143-ad37-ac9f31594a85  Bloomberg Finance L.P.
+    2,020.48  6fbb0f0e-4cc0-4587-902d-7f15f4799fd0                                    abfbbf70-2eb5-42c5-90d1-da1735452123  58ebe85e-cdaf-4720-926f-3295eae25c1c  S&P Global Enterprise Data Agreement 2025                  Research Cost Centre (inherited from Clara Weiss)  inherited           €                direct     fb28f221-52ad-4a56-9d49-e86a167d6b07  Clara Weiss  PersonParty  Capital IQ Pro Workstation  a2cd5396-9c82-41e5-bdaa-7aef27eb5b57  ESG Data Integration            1.0  Clara Weiss     58ebe85e-cdaf-4720-926f-3295eae25c1c  S&P Capital IQ Pro - Research Bundle  ContractItem  2024-03-02            06453dc9-082e-4779-bc7e-0edd9cc5ccb2  S&P Global Inc.

@@ -1,0 +1,55 @@
+Sign up, sign in and query your firmfact workspaces from the command line.
+
+Usage:
+  ff [command]
+
+Commands:
+  ask                 Ask a question about a workspace in plain English
+  call                Call any server tool by name, with --arg key=value for each argument
+  claim               Make a short name such as ff run this CLI
+  completion          Generate the autocompletion script for the specified shell
+  config              Show or change CLI settings and profiles
+  doctor              Check this installation, the connection and your sign-in
+  help                Help about any command
+  login               Sign in through your browser
+  logout              Sign out: end the session on the server and forget it here
+  open                Open firmfact in your browser
+  signup              Create a firmfact account
+  tools               List or refresh the workspace commands
+  update              Update this CLI to the latest release
+  version             Show this CLI's version and build, and the latest release
+  whoami              Show who you are signed in as
+  workspaces          List workspaces, choose the default one or check on a setup
+
+Workspace commands:
+  allocations         Workspace allocations
+  analyze             Analyse spend, utilisation and allocations
+  applications        Workspace applications
+  chat-with-workspace Ask your market-data workspace (writes to your workspace)
+  contract-items      Workspace contract items
+  contracts           Workspace contracts
+  cost-centers        Workspace cost centers
+  currencies          Workspace currencies
+  platforms           Workspace platforms
+  product-groups      Workspace product groups
+  products            Workspace products
+  projects            Workspace projects
+  vendors             Workspace vendors
+
+Flags:
+      --debug              log each request and answer on stderr, with secrets redacted (or set FIRMFACT_DEBUG=1)
+      --format format      output format: table, json, csv or tsv (default: table; csv and tsv print a workspace command's rows)
+  -h, --help               help for ff
+      --host string        Firmfact host (default: FIRMFACT_HOST, else the profile's, else https://firmfact.com); localhost:<port> for local development
+      --insecure-http      allow plain http to a host other than this machine (your token travels unencrypted)
+      --jq expression      filter the JSON output with a jq expression, such as '.data[].name'; implies --json
+      --json               print machine-readable JSON (the same as --format json)
+      --profile string     profile to use, one that exists (default: FIRMFACT_PROFILE, else the current profile)
+      --timeout duration   limit for each request, such as 90s (default: 60s, 90s for workspace commands and 5m for a chat, and 30s for the server to start answering; or set FIRMFACT_TIMEOUT)
+  -v, --version            version for ff
+      --workspace string   workspace id or name (default: FIRMFACT_WORKSPACE, else the profile's workspace)
+
+Additional help topics:
+  ff environment         Environment variables that set the host, profile, workspace and more
+
+Use "ff [command] --help" for more information about a command.

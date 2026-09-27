@@ -1,0 +1,44 @@
+name: govulncheck
+
+# Known vulnerabilities in the code the CLI calls, from Go itself or a
+# dependency. Weekly as well, because new reports arrive while the code
+# stands still.
+on:
+  push:
+    branches: [main]
+  pull_request:
+  schedule:
+    - cron: "17 6 * * 1" # Mondays, 06:17 UTC
+  workflow_dispatch:
+
+# Nothing by default; each job asks for what it needs. Every `uses:` is
+# pinned to a full commit SHA, with the release it came from in the comment.
+permissions: {}
+
+# As in ci.yml: only a newer push to the same pull request cancels a run.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: true
+
+jobs:
+  govulncheck:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          persist-credentials: false
+      # The Go in go.mod, which is what a release is built with.
+      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6.5.0
+        with:
+          go-version-file: go.mod
+          cache: false
+      # Not golang/govulncheck-action: it installs govulncheck@latest and has
+      # no input to pin it (v1.1.0), so a new govulncheck would reach this
+      # job unreviewed. Exact, as in release.yml's test job; keep the two in
+      # step. The vulnerability database is fetched on every run, so the
+      # weekly run still sees new reports.
+      - name: govulncheck
+        run: go run golang.org/x/vuln/cmd/govulncheck@v1.8.0 ./...

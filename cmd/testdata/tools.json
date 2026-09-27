@@ -1,0 +1,690 @@
+[
+  {
+    "name": "chat_with_workspace",
+    "title": "Ask your market-data workspace",
+    "description": "Ask a plain-English question about this workspace's market-data spend and estate and get an analysed answer with real figures, covering vendors, contracts, invoices, products, applications, cost centres, allocations and projects \u2014 e.g. \"what's my Bloomberg spend?\", \"which vendors renew soon?\", \"break down market-data costs by cost centre\". Suits open-ended, ambiguous, comparative or multi-step questions; analyze_cost_trends returns a specific spend figure, analyze_allocations who holds an item, analyze_utilization utilisation rates, and the list_* tools a straight lookup. Each call records the question and the answer as messages in a chat thread in the user's workspace \u2014 a new thread unless thread_id is supplied, and the response returns a thread_id to continue it. It does not create, edit or delete vendor, contract, cost or allocation records: where a change would be needed it returns a described proposal for the user to confirm in the web app.",
+    "inputSchema": {
+      "properties": {
+        "message": {
+          "description": "Your question or request",
+          "type": "string"
+        },
+        "thread_id": {
+          "description": "Optional: Continue an existing chat thread",
+          "type": "string"
+        },
+        "workspace": {
+          "description": "Workspace to use, by name or id (see list_workspaces). Omit for the default workspace, Demo.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "message"
+      ],
+      "type": "object"
+    },
+    "annotations": {
+      "readOnlyHint": false,
+      "destructiveHint": false
+    }
+  },
+  {
+    "name": "list_vendors",
+    "title": "List vendors",
+    "description": "List the user's market-data vendors / suppliers (Bloomberg, Refinitiv/LSEG, FactSet, S&P, ICE, etc.) with optional name search. Use to find a vendor or its id. Default fields include cost (the six months either side of today, cash basis) and monthly_cost (the current month, accrual basis). Both are in the workspace base currency, which is not the entity's own invoicing currency shown in currency_userdef_id. For a spend figure over a period you choose, use analyze_cost_trends.",
+    "inputSchema": {
+      "properties": {
+        "fields": {
+          "description": "Fields to return. For fast name/id lookups use [\"name\", \"temporal_id\", \"userdef_id\"] to skip cost calculations. Omit to include the default fields and available cost figures.",
+          "items": {
+            "type": "string"
+          },
+          "minItems": 1,
+          "type": "array"
+        },
+        "limit": {
+          "default": 100,
+          "description": "Maximum number of records to return.",
+          "maximum": 200,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "page": {
+          "default": 1,
+          "description": "Page number. Keep query, fields and limit unchanged when fetching subsequent pages.",
+          "minimum": 1,
+          "type": "integer"
+        },
+        "query": {
+          "description": "Search term matched against the record name.",
+          "maxLength": 200,
+          "type": "string"
+        },
+        "workspace": {
+          "description": "Workspace to use, by name or id (see list_workspaces). Omit for the default workspace, Demo.",
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "annotations": {
+      "readOnlyHint": true,
+      "destructiveHint": false
+    }
+  },
+  {
+    "name": "list_contracts",
+    "title": "List contracts",
+    "description": "List vendor contracts (agreements with suppliers such as Bloomberg or FactSet) with optional name search. Use to find a contract or its id before analysing its spend or utilisation. Returns contract names, vendors and ids. Default fields include cost (the six months either side of today, cash basis) and monthly_cost (the current month, accrual basis). Both are in the workspace base currency, which is not the entity's own invoicing currency shown in currency_userdef_id. For a spend figure over a period you choose, use analyze_cost_trends.",
+    "inputSchema": {
+      "properties": {
+        "fields": {
+          "description": "Fields to return. For fast name/id lookups use [\"name\", \"temporal_id\", \"userdef_id\"] to skip cost calculations. Omit to include the default fields and available cost figures.",
+          "items": {
+            "type": "string"
+          },
+          "minItems": 1,
+          "type": "array"
+        },
+        "limit": {
+          "default": 100,
+          "description": "Maximum number of records to return.",
+          "maximum": 200,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "page": {
+          "default": 1,
+          "description": "Page number. Keep query, fields and limit unchanged when fetching subsequent pages.",
+          "minimum": 1,
+          "type": "integer"
+        },
+        "query": {
+          "description": "Search term matched against the record name.",
+          "maxLength": 200,
+          "type": "string"
+        },
+        "workspace": {
+          "description": "Workspace to use, by name or id (see list_workspaces). Omit for the default workspace, Demo.",
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "annotations": {
+      "readOnlyHint": true,
+      "destructiveHint": false
+    }
+  },
+  {
+    "name": "list_products",
+    "title": "List products",
+    "description": "List market-data products / subscriptions in the workspace (e.g. Bloomberg Anywhere, FactSet Workstation, Capital IQ) with optional name search. Returns product names and ids only \u2014 not prices or spend.",
+    "inputSchema": {
+      "properties": {
+        "fields": {
+          "description": "Fields to return. For fast name/id lookups use [\"name\", \"temporal_id\", \"userdef_id\"] to skip cost calculations. Omit to include the default fields and available cost figures.",
+          "items": {
+            "type": "string"
+          },
+          "minItems": 1,
+          "type": "array"
+        },
+        "limit": {
+          "default": 100,
+          "description": "Maximum number of records to return.",
+          "maximum": 200,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "page": {
+          "default": 1,
+          "description": "Page number. Keep query, fields and limit unchanged when fetching subsequent pages.",
+          "minimum": 1,
+          "type": "integer"
+        },
+        "query": {
+          "description": "Search term matched against the record name.",
+          "maxLength": 200,
+          "type": "string"
+        },
+        "workspace": {
+          "description": "Workspace to use, by name or id (see list_workspaces). Omit for the default workspace, Demo.",
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "annotations": {
+      "readOnlyHint": true,
+      "destructiveHint": false
+    }
+  },
+  {
+    "name": "list_currencies",
+    "title": "List currencies",
+    "description": "List the currencies used across pricing and invoices (USD, EUR, GBP\u2026). Reference lookup only \u2014 returns currency codes, never spend or cost amounts.",
+    "inputSchema": {
+      "properties": {
+        "fields": {
+          "description": "Fields to return. For fast name/id lookups use [\"name\", \"temporal_id\", \"userdef_id\"] to skip cost calculations. Omit to include the default fields and available cost figures.",
+          "items": {
+            "type": "string"
+          },
+          "minItems": 1,
+          "type": "array"
+        },
+        "limit": {
+          "default": 100,
+          "description": "Maximum number of records to return.",
+          "maximum": 200,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "page": {
+          "default": 1,
+          "description": "Page number. Keep query, fields and limit unchanged when fetching subsequent pages.",
+          "minimum": 1,
+          "type": "integer"
+        },
+        "query": {
+          "description": "Search term matched against the record name.",
+          "maxLength": 200,
+          "type": "string"
+        },
+        "workspace": {
+          "description": "Workspace to use, by name or id (see list_workspaces). Omit for the default workspace, Demo.",
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "annotations": {
+      "readOnlyHint": true,
+      "destructiveHint": false
+    }
+  },
+  {
+    "name": "list_applications",
+    "title": "List applications",
+    "description": "List applications / systems that consume market data. Returns application names and ids. Default fields include cost (the six months either side of today, cash basis) and monthly_cost (the current month, accrual basis). Both are in the workspace base currency, which is not the entity's own invoicing currency shown in currency_userdef_id. For a spend figure over a period you choose, use analyze_cost_trends.",
+    "inputSchema": {
+      "properties": {
+        "fields": {
+          "description": "Fields to return. For fast name/id lookups use [\"name\", \"temporal_id\", \"userdef_id\"] to skip cost calculations. Omit to include the default fields and available cost figures.",
+          "items": {
+            "type": "string"
+          },
+          "minItems": 1,
+          "type": "array"
+        },
+        "limit": {
+          "default": 100,
+          "description": "Maximum number of records to return.",
+          "maximum": 200,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "page": {
+          "default": 1,
+          "description": "Page number. Keep query, fields and limit unchanged when fetching subsequent pages.",
+          "minimum": 1,
+          "type": "integer"
+        },
+        "query": {
+          "description": "Search term matched against the record name.",
+          "maxLength": 200,
+          "type": "string"
+        },
+        "workspace": {
+          "description": "Workspace to use, by name or id (see list_workspaces). Omit for the default workspace, Demo.",
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "annotations": {
+      "readOnlyHint": true,
+      "destructiveHint": false
+    }
+  },
+  {
+    "name": "list_cost_centers",
+    "title": "List cost centres",
+    "description": "List cost centres \u2014 the internal departments that market-data costs are allocated TO (not vendors). Use to find a cost centre before breaking spend down by department. Default fields include cost (the six months either side of today, cash basis) and monthly_cost (the current month, accrual basis). Both are in the workspace base currency, which is not the entity's own invoicing currency shown in currency_userdef_id. For a spend figure over a period you choose, use analyze_cost_trends.",
+    "inputSchema": {
+      "properties": {
+        "fields": {
+          "description": "Fields to return. For fast name/id lookups use [\"name\", \"temporal_id\", \"userdef_id\"] to skip cost calculations. Omit to include the default fields and available cost figures.",
+          "items": {
+            "type": "string"
+          },
+          "minItems": 1,
+          "type": "array"
+        },
+        "limit": {
+          "default": 100,
+          "description": "Maximum number of records to return.",
+          "maximum": 200,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "page": {
+          "default": 1,
+          "description": "Page number. Keep query, fields and limit unchanged when fetching subsequent pages.",
+          "minimum": 1,
+          "type": "integer"
+        },
+        "query": {
+          "description": "Search term matched against the record name.",
+          "maxLength": 200,
+          "type": "string"
+        },
+        "workspace": {
+          "description": "Workspace to use, by name or id (see list_workspaces). Omit for the default workspace, Demo.",
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "annotations": {
+      "readOnlyHint": true,
+      "destructiveHint": false
+    }
+  },
+  {
+    "name": "list_platforms",
+    "title": "List platforms",
+    "description": "List technology platforms that deliver or host market data. Returns platform names and ids. Default fields include cost (the six months either side of today, cash basis) and monthly_cost (the current month, accrual basis). Both are in the workspace base currency, which is not the entity's own invoicing currency shown in currency_userdef_id. For a spend figure over a period you choose, use analyze_cost_trends.",
+    "inputSchema": {
+      "properties": {
+        "fields": {
+          "description": "Fields to return. For fast name/id lookups use [\"name\", \"temporal_id\", \"userdef_id\"] to skip cost calculations. Omit to include the default fields and available cost figures.",
+          "items": {
+            "type": "string"
+          },
+          "minItems": 1,
+          "type": "array"
+        },
+        "limit": {
+          "default": 100,
+          "description": "Maximum number of records to return.",
+          "maximum": 200,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "page": {
+          "default": 1,
+          "description": "Page number. Keep query, fields and limit unchanged when fetching subsequent pages.",
+          "minimum": 1,
+          "type": "integer"
+        },
+        "query": {
+          "description": "Search term matched against the record name.",
+          "maxLength": 200,
+          "type": "string"
+        },
+        "workspace": {
+          "description": "Workspace to use, by name or id (see list_workspaces). Omit for the default workspace, Demo.",
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "annotations": {
+      "readOnlyHint": true,
+      "destructiveHint": false
+    }
+  },
+  {
+    "name": "list_product_groups",
+    "title": "List product groups",
+    "description": "List product groups \u2014 the categories used to organise market-data products. Returns group names and ids. Default fields include cost (the six months either side of today, cash basis) and monthly_cost (the current month, accrual basis). Both are in the workspace base currency, which is not the entity's own invoicing currency shown in currency_userdef_id. For a spend figure over a period you choose, use analyze_cost_trends.",
+    "inputSchema": {
+      "properties": {
+        "fields": {
+          "description": "Fields to return. For fast name/id lookups use [\"name\", \"temporal_id\", \"userdef_id\"] to skip cost calculations. Omit to include the default fields and available cost figures.",
+          "items": {
+            "type": "string"
+          },
+          "minItems": 1,
+          "type": "array"
+        },
+        "limit": {
+          "default": 100,
+          "description": "Maximum number of records to return.",
+          "maximum": 200,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "page": {
+          "default": 1,
+          "description": "Page number. Keep query, fields and limit unchanged when fetching subsequent pages.",
+          "minimum": 1,
+          "type": "integer"
+        },
+        "query": {
+          "description": "Search term matched against the record name.",
+          "maxLength": 200,
+          "type": "string"
+        },
+        "workspace": {
+          "description": "Workspace to use, by name or id (see list_workspaces). Omit for the default workspace, Demo.",
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "annotations": {
+      "readOnlyHint": true,
+      "destructiveHint": false
+    }
+  },
+  {
+    "name": "list_projects",
+    "title": "List projects",
+    "description": "List projects that consume market data. Use to find a project before attributing spend or usage to it. Default fields include cost (the six months either side of today, cash basis) and monthly_cost (the current month, accrual basis). Both are in the workspace base currency, which is not the entity's own invoicing currency shown in currency_userdef_id. For a spend figure over a period you choose, use analyze_cost_trends.",
+    "inputSchema": {
+      "properties": {
+        "fields": {
+          "description": "Fields to return. For fast name/id lookups use [\"name\", \"temporal_id\", \"userdef_id\"] to skip cost calculations. Omit to include the default fields and available cost figures.",
+          "items": {
+            "type": "string"
+          },
+          "minItems": 1,
+          "type": "array"
+        },
+        "limit": {
+          "default": 100,
+          "description": "Maximum number of records to return.",
+          "maximum": 200,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "page": {
+          "default": 1,
+          "description": "Page number. Keep query, fields and limit unchanged when fetching subsequent pages.",
+          "minimum": 1,
+          "type": "integer"
+        },
+        "query": {
+          "description": "Search term matched against the record name.",
+          "maxLength": 200,
+          "type": "string"
+        },
+        "workspace": {
+          "description": "Workspace to use, by name or id (see list_workspaces). Omit for the default workspace, Demo.",
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "annotations": {
+      "readOnlyHint": true,
+      "destructiveHint": false
+    }
+  },
+  {
+    "name": "list_contract_items",
+    "title": "List contract items",
+    "description": "List contract line items / subscriptions \u2014 the individual rows inside a contract (e.g. a Bloomberg Anywhere seat, a FactSet licence). Optional name search. Returns item names and ids; quantity and unit price are not included. Default fields include cost (the six months either side of today, cash basis) and monthly_cost (the current month, accrual basis). Both are in the workspace base currency, which is not the entity's own invoicing currency shown in currency_userdef_id. For a spend figure over a period you choose, use analyze_cost_trends.",
+    "inputSchema": {
+      "properties": {
+        "fields": {
+          "description": "Fields to return. For fast name/id lookups use [\"name\", \"temporal_id\", \"userdef_id\"] to skip cost calculations. Omit to include the default fields and available cost figures.",
+          "items": {
+            "type": "string"
+          },
+          "minItems": 1,
+          "type": "array"
+        },
+        "limit": {
+          "default": 100,
+          "description": "Maximum number of records to return.",
+          "maximum": 200,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "page": {
+          "default": 1,
+          "description": "Page number. Keep query, fields and limit unchanged when fetching subsequent pages.",
+          "minimum": 1,
+          "type": "integer"
+        },
+        "query": {
+          "description": "Search term matched against the record name.",
+          "maxLength": 200,
+          "type": "string"
+        },
+        "workspace": {
+          "description": "Workspace to use, by name or id (see list_workspaces). Omit for the default workspace, Demo.",
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "annotations": {
+      "readOnlyHint": true,
+      "destructiveHint": false
+    }
+  },
+  {
+    "name": "list_allocations",
+    "title": "List allocations",
+    "description": "List cost allocations \u2014 how a subscription's cost is split across people, departments or cost centres. For \"who holds or uses X\" use analyze_allocations. Default fields include cost (the six months either side of today, cash basis) and monthly_cost (the current month, accrual basis). Both are in the workspace base currency, which is not the entity's own invoicing currency shown in currency_userdef_id. For a spend figure over a period you choose, use analyze_cost_trends.",
+    "inputSchema": {
+      "properties": {
+        "fields": {
+          "description": "Fields to return. For fast name/id lookups use [\"name\", \"temporal_id\", \"userdef_id\"] to skip cost calculations. Omit to include the default fields and available cost figures.",
+          "items": {
+            "type": "string"
+          },
+          "minItems": 1,
+          "type": "array"
+        },
+        "include_incoming": {
+          "default": false,
+          "description": "Include incoming Application funding. Direct and outgoing recipient allocations are shown by default; incoming funding is a separate stage and cannot be added to recipient totals.",
+          "type": "boolean"
+        },
+        "limit": {
+          "default": 100,
+          "description": "Maximum number of records to return.",
+          "maximum": 200,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "page": {
+          "default": 1,
+          "description": "Page number. Keep query, fields and limit unchanged when fetching subsequent pages.",
+          "minimum": 1,
+          "type": "integer"
+        },
+        "query": {
+          "description": "Search term matched against the record name.",
+          "maxLength": 200,
+          "type": "string"
+        },
+        "workspace": {
+          "description": "Workspace to use, by name or id (see list_workspaces). Omit for the default workspace, Demo.",
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "annotations": {
+      "readOnlyHint": true,
+      "destructiveHint": false
+    }
+  },
+  {
+    "name": "analyze_allocations",
+    "title": "Analyse allocations",
+    "description": "Find WHO holds or uses market-data subscriptions: who has multiple terminals, all holders of a product (e.g. everyone with Bloomberg), per-person or per-department breakdowns, and how many hold an item. This answers \"who has/uses X\", NOT \"how much do we spend on X\" \u2014 for a vendor or cost-centre spend total use analyze_cost_trends instead.",
+    "inputSchema": {
+      "properties": {
+        "analysis_type": {
+          "description": "Type of allocation analysis: 'multiple_items' finds who has multiple allocations, 'by_party' lists all allocations for a specific person/party (use with party_name), 'by_product' lists all allocations for a specific product (use with product_name), 'by_cost' ranks the most expensive allocations, 'utilization' shows utilization rates, 'for_contract_item' lists direct recipients and incoming Application funding on one contract item (requires contract_item_id temporal_id UUID)",
+          "enum": [
+            "multiple_items",
+            "by_party",
+            "by_product",
+            "by_cost",
+            "utilization",
+            "for_contract_item"
+          ],
+          "type": "string"
+        },
+        "contract_item_id": {
+          "description": "Contract item temporal_id \u2014 required when analysis_type is for_contract_item",
+          "type": "string"
+        },
+        "limit": {
+          "description": "Maximum number of allocations to return for 'by_cost' analysis (default: 10, max: 25)",
+          "type": "integer"
+        },
+        "min_count": {
+          "description": "Minimum number of allocations for 'multiple_items' analysis (default: 2)",
+          "type": "integer"
+        },
+        "party_name": {
+          "description": "Name of the person/party to look up allocations for (used with 'by_party' analysis_type). Supports partial matching. If the response has ambiguous_subject=true the name matched more than one distinct person (see matched_parties) \u2014 do not answer for just one; list the matched people and ask which is meant, or report each grouped by person.",
+          "type": "string"
+        },
+        "party_type": {
+          "description": "Filter by party type (default: PersonParty for individual users)",
+          "enum": [
+            "PersonParty",
+            "DepartmentParty",
+            "LegalEntityParty",
+            "LocationParty"
+          ],
+          "type": "string"
+        },
+        "product_id": {
+          "description": "Filter by specific product ID",
+          "type": "string"
+        },
+        "product_name": {
+          "description": "Filter by the product's distinctive BRAND or name \u2014 e.g. 'Bloomberg', 'FactSet', 'Capital IQ', 'Reuters'. Do NOT pass a generic category word alone like 'terminal', 'seat', 'license', or 'workstation': those rarely appear in the product name and match nothing (e.g. the real terminal product is 'Bloomberg Anywhere', so search 'Bloomberg', not 'Bloomberg terminal'). Partial matching; if a search returns no rows, retry with just the brand word.",
+          "type": "string"
+        },
+        "workspace": {
+          "description": "Workspace to use, by name or id (see list_workspaces). Omit for the default workspace, Demo.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "analysis_type"
+      ],
+      "type": "object"
+    },
+    "annotations": {
+      "readOnlyHint": true,
+      "destructiveHint": false
+    }
+  },
+  {
+    "name": "analyze_cost_trends",
+    "title": "Analyse spend and cost trends",
+    "description": "Answer \"how much do we spend on X?\" and \"what's my <vendor> spend?\". Returns the total plus month-by-month cost for a vendor (Bloomberg, Refinitiv/LSEG, FactSet, S&P, ICE\u2026), contract, product, party or cost centre, with optional forecast. This is the primary tool for any vendor / contract / product spend or cost question \u2014 name the entity via entity_name (e.g. \"Bloomberg\"), no id lookup needed. These figures are private to the workspace; never estimate them from general knowledge.",
+    "inputSchema": {
+      "properties": {
+        "calculation_type": {
+          "description": "Cost calculation method: 'accrual_based' (default) spreads cost evenly over service period for accurate budget planning, 'cash_based' recognizes cost when payment is due for cash flow analysis.",
+          "enum": [
+            "accrual_based",
+            "cash_based"
+          ],
+          "type": "string"
+        },
+        "entity_id": {
+          "description": "ID of specific entity to analyze (optional - analyzes all if not provided)",
+          "type": "string"
+        },
+        "entity_name": {
+          "description": "Exact or near-exact entity name/code to resolve directly when the user names a contract, product, vendor, or cost centre",
+          "type": "string"
+        },
+        "entity_type": {
+          "description": "Type of entity to analyze",
+          "enum": [
+            "contract",
+            "vendor",
+            "party",
+            "product",
+            "cost_center"
+          ],
+          "type": "string"
+        },
+        "include_insights": {
+          "description": "Include AI-generated insights about trends and anomalies (default: true)",
+          "type": "boolean"
+        },
+        "months_back": {
+          "description": "Number of months to look back from current date (default: 6)",
+          "type": "integer"
+        },
+        "months_forward": {
+          "description": "Number of months to project forward (default: 6)",
+          "type": "integer"
+        },
+        "workspace": {
+          "description": "Workspace to use, by name or id (see list_workspaces). Omit for the default workspace, Demo.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "entity_type"
+      ],
+      "type": "object"
+    },
+    "annotations": {
+      "readOnlyHint": true,
+      "destructiveHint": false
+    }
+  },
+  {
+    "name": "analyze_utilization",
+    "title": "Analyse utilisation",
+    "description": "Show how much of what you pay for is actually used: utilisation rates for a vendor's or contract's subscriptions, and which are under-used and could be cut. Answers \"are we under-utilising any data subscriptions?\".",
+    "inputSchema": {
+      "properties": {
+        "contract_id": {
+          "description": "Filter by contract ID",
+          "type": "string"
+        },
+        "show_underutilized": {
+          "description": "Only show underutilized subscriptions",
+          "type": "boolean"
+        },
+        "vendor_id": {
+          "description": "Filter by vendor ID",
+          "type": "string"
+        },
+        "workspace": {
+          "description": "Workspace to use, by name or id (see list_workspaces). Omit for the default workspace, Demo.",
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "annotations": {
+      "readOnlyHint": true,
+      "destructiveHint": false
+    }
+  },
+  {
+    "name": "list_workspaces",
+    "title": "List workspaces",
+    "description": "List the workspaces this connection can reach: id, name, whether it is the default, whether it is a demo workspace (fictitious sample data) and whether its plan includes this connector. Every other tool takes an optional workspace argument (a name or id from this list) and uses the default workspace when it is omitted.",
+    "inputSchema": {
+      "properties": {},
+      "type": "object"
+    },
+    "annotations": {
+      "readOnlyHint": true,
+      "destructiveHint": false
+    }
+  }
+]

@@ -1,0 +1,26 @@
+#!/bin/sh
+# syft for GoReleaser's sboms step (.goreleaser.yaml), run in a container.
+#
+# release.yml runs GoReleaser with RELEASE_SIGNING_KEY, the only root of
+# trust for `firmfact update`, and tokens that can write to this
+# repository, the Homebrew tap and the Scoop bucket. syft is the one
+# third-party program GoReleaser starts. As a process of the same user on
+# the runner it could read that environment from /proc, or change the Go
+# toolchain or build cache the release is made with. In a container it sees no other process and no file but the dist
+# directory GoReleaser runs it in, and the image is pinned by digest, so a
+# moved tag or a replaced install script cannot swap it. The workflows put
+# this directory first on PATH (ci.yml's release-config job too, so pull
+# requests test the same path); a local snapshot uses your own syft.
+#
+# To upgrade, take the digest of the new version's image index:
+#   docker buildx imagetools inspect ghcr.io/anchore/syft:vX.Y.Z
+set -eu
+image=ghcr.io/anchore/syft:v1.51.1@sha256:95fe0835e5bebc6f8b1f8acef68d47d63d594ef4c0f25c097ff853b23cbac74c
+dir=$(pwd)
+exec docker run --rm \
+	--user "$(id -u):$(id -g)" \
+	--read-only --tmpfs /tmp:mode=1777 --env HOME=/tmp \
+	--cap-drop ALL --security-opt no-new-privileges \
+	--env SYFT_FILE_METADATA_CATALOGER_ENABLED \
+	--volume "$dir:$dir" --workdir "$dir" \
+	"$image" "$@"

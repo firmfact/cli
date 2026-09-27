@@ -1,0 +1,5 @@
+bin/
+dist/
+# Made by `go run ./internal/gendocs` for the release archives.
+/completions/
+/manpages/

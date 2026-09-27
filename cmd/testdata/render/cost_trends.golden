@@ -1,0 +1,13 @@
+Total cost:               EUR 787,000.00
+Period:                   2026-07-01 to 2026-10-31 (4 months)
+Calculation:              Cost spread evenly over service period (budget planning)
+Average cost per entity:  EUR 393,500.00
+Total entities:           2
+Analysis type:            cost_trends
+Entity type:              vendor
+
+- 1 vendors show high growth (>10% monthly average)
+
+ENTITY_NAME            ENTITY_ID                             CURRENCY  ENTITY_TYPE  TOTAL_COST
+S&P Global Inc.        06453dc9-082e-4779-bc7e-0edd9cc5ccb2  EUR       vendor       465,000.00
+LSEG Data & Analytics  c4550993-083d-4562-baf2-7eb18d488532  EUR       vendor       322,000.00

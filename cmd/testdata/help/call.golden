@@ -1,0 +1,38 @@
+Call any server tool by name, including one that has no command of its own
+(see `ff tools list`), with --arg key=value for each argument.
+
+Each value is read as the type the tool's schema gives the argument, as the
+tool's own command reads its flags: query=123 is the text 123, limit=10 the
+number 10, and a boolean takes true or false. An array takes its items as the
+command's flag does, commas separating them, and more each time the key is
+repeated; a JSON array is the way to send an item with a comma of its own. An
+object takes JSON. An argument the schema does not describe, or any argument
+of a tool whose schema is not known, is read as JSON when it can be, and as
+text otherwise.
+
+Usage:
+  ff call <tool> [flags]
+
+Examples:
+  ff call list_vendors --arg query=Bloomberg --arg limit=10
+  ff call list_vendors --arg fields=name,id
+  ff call analyze_cost_trends --arg entity_type=vendor --arg months_back=12
+
+Flags:
+      --all               fetch every page, 200 rows at a time; with --json, one JSON row per line (NDJSON)
+      --arg stringArray   tool argument as key=value (repeatable)
+      --columns strings   the columns to print, in order (comma-separated); where the tool takes fields, also the fields it sends
+  -h, --help              help for call
+      --wide              print every cell whole instead of fitting the table to the terminal
+  -y, --yes               go ahead without asking first when the tool may delete or overwrite data
+
+Global Flags:
+      --debug              log each request and answer on stderr, with secrets redacted (or set FIRMFACT_DEBUG=1)
+      --format format      output format: table, json, csv or tsv (default: table; csv and tsv print a workspace command's rows)
+      --host string        Firmfact host (default: FIRMFACT_HOST, else the profile's, else https://firmfact.com); localhost:<port> for local development
+      --insecure-http      allow plain http to a host other than this machine (your token travels unencrypted)
+      --jq expression      filter the JSON output with a jq expression, such as '.data[].name'; implies --json
+      --json               print machine-readable JSON (the same as --format json)
+      --profile string     profile to use, one that exists (default: FIRMFACT_PROFILE, else the current profile)
+      --timeout duration   limit for each request, such as 90s (default: 60s, 90s for workspace commands and 5m for a chat, and 30s for the server to start answering; or set FIRMFACT_TIMEOUT)
+      --workspace string   workspace id or name (default: FIRMFACT_WORKSPACE, else the profile's workspace)

@@ -1,0 +1,175 @@
+{
+  "analysis_type": "cost_trends",
+  "entity_type": "vendor",
+  "entity_id": null,
+  "currency": "EUR",
+  "amounts_note": "All cost figures (total_cost, monthly_breakdown, monthly_totals) are in the account base currency EUR, converted from each contract's original currency.",
+  "calculation_type": "accrual_based",
+  "calculation_type_description": "Cost spread evenly over service period (budget planning)",
+  "period": {
+    "start_date": "2026-07-01 00:00:00 UTC",
+    "end_date": "2026-10-31 23:59:59 UTC",
+    "months_analyzed": 4
+  },
+  "summary": {
+    "total_entities": 2,
+    "total_cost": "787000.004321",
+    "currency": "EUR",
+    "average_cost_per_entity": "393500.0",
+    "monthly_totals": [
+      {
+        "month": "2026-07",
+        "cost": "180000.0",
+        "is_historical": true,
+        "is_current_month": false,
+        "currency": "EUR"
+      },
+      {
+        "month": "2026-08",
+        "cost": "190000.0",
+        "is_historical": true,
+        "is_current_month": false,
+        "currency": "EUR"
+      },
+      {
+        "month": "2026-09",
+        "cost": "205000.004321",
+        "is_historical": true,
+        "is_current_month": true,
+        "currency": "EUR"
+      },
+      {
+        "month": "2026-10",
+        "cost": "212000.0",
+        "is_historical": false,
+        "is_current_month": false,
+        "currency": "EUR"
+      }
+    ]
+  },
+  "entities": [
+    {
+      "entity_id": "06453dc9-082e-4779-bc7e-0edd9cc5ccb2",
+      "entity_name": "S&P Global Inc.",
+      "entity_type": "vendor",
+      "total_cost": "465000.004321",
+      "currency": "EUR",
+      "monthly_breakdown": [
+        {
+          "month": "2026-07",
+          "month_name": "July 2026",
+          "cost": "100000.0",
+          "formatted_cost": "EUR 100,000.00",
+          "is_historical": true,
+          "is_current_month": false
+        },
+        {
+          "month": "2026-08",
+          "month_name": "August 2026",
+          "cost": "110000.0",
+          "formatted_cost": "EUR 110,000.00",
+          "is_historical": true,
+          "is_current_month": false
+        },
+        {
+          "month": "2026-09",
+          "month_name": "September 2026",
+          "cost": "125000.004321",
+          "formatted_cost": "EUR 125,000.00",
+          "is_historical": true,
+          "is_current_month": true
+        },
+        {
+          "month": "2026-10",
+          "month_name": "October 2026",
+          "cost": "130000.0",
+          "formatted_cost": "EUR 130,000.00",
+          "is_historical": false,
+          "is_current_month": false
+        }
+      ],
+      "trend_analysis": {
+        "average_growth_rate": "11.82",
+        "total_historical_cost": "335000.004321",
+        "total_projected_cost": "130000.0",
+        "highest_month": {
+          "month": "2026-10-01",
+          "year": 2026,
+          "month_name": "October 2026",
+          "cost": "130000.0",
+          "formatted_cost": "EUR 130,000.00"
+        },
+        "lowest_month": {
+          "month": "2026-07-01",
+          "year": 2026,
+          "month_name": "July 2026",
+          "cost": "100000.0",
+          "formatted_cost": "EUR 100,000.00"
+        }
+      }
+    },
+    {
+      "entity_id": "c4550993-083d-4562-baf2-7eb18d488532",
+      "entity_name": "LSEG Data & Analytics",
+      "entity_type": "vendor",
+      "total_cost": "322000.0",
+      "currency": "EUR",
+      "monthly_breakdown": [
+        {
+          "month": "2026-07",
+          "month_name": "July 2026",
+          "cost": "80000.0",
+          "formatted_cost": "EUR 80,000.00",
+          "is_historical": true,
+          "is_current_month": false
+        },
+        {
+          "month": "2026-08",
+          "month_name": "August 2026",
+          "cost": "80000.0",
+          "formatted_cost": "EUR 80,000.00",
+          "is_historical": true,
+          "is_current_month": false
+        },
+        {
+          "month": "2026-09",
+          "month_name": "September 2026",
+          "cost": "80000.0",
+          "formatted_cost": "EUR 80,000.00",
+          "is_historical": true,
+          "is_current_month": true
+        },
+        {
+          "month": "2026-10",
+          "month_name": "October 2026",
+          "cost": "82000.0",
+          "formatted_cost": "EUR 82,000.00",
+          "is_historical": false,
+          "is_current_month": false
+        }
+      ],
+      "trend_analysis": {
+        "average_growth_rate": "0.0",
+        "total_historical_cost": "240000.",
+        "total_projected_cost": "82000.0",
+        "highest_month": {
+          "month": "2026-10-01",
+          "year": 2026,
+          "month_name": "October 2026",
+          "cost": "82000.0",
+          "formatted_cost": "EUR 82,000.00"
+        },
+        "lowest_month": {
+          "month": "2026-07-01",
+          "year": 2026,
+          "month_name": "July 2026",
+          "cost": "80000.0",
+          "formatted_cost": "EUR 80,000.00"
+        }
+      }
+    }
+  ],
+  "insights": [
+    "1 vendors show high growth (>10% monthly average)"
+  ]
+}

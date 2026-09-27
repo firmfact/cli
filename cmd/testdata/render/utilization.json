@@ -1,0 +1,164 @@
+{
+  "analysis_type": "utilization",
+  "entity_type": "contract_item",
+  "entity_id": null,
+  "period": {
+    "start_date": "2026-06-27 02:33:01 UTC",
+    "end_date": "2026-09-27"
+  },
+  "filters": {
+    "min_utilization": 0,
+    "max_utilization": 100
+  },
+  "summary": {
+    "total_items": 2,
+    "total_quantity": "11.0",
+    "total_allocated": "9.0",
+    "overall_utilization_percentage": "81.82",
+    "average_utilization": "90.0",
+    "total_monthly_cost": 15622.1,
+    "total_wasted_cost": 3105.3,
+    "currency": "USD"
+  },
+  "items": [
+    {
+      "entity_id": "118b1b32-b400-4491-ac53-d847ba35a1b9",
+      "entity_name": "PitchBook Platform – Enterprise Tier",
+      "entity_type": "contract_item",
+      "product_name": "Morningstar PitchBook Platform",
+      "contract_name": "Morningstar PitchBook Enterprise License 2025",
+      "vendor_name": "Morningstar, Inc.",
+      "total_quantity": "10.0",
+      "allocated_quantity": "8.0",
+      "unallocated_quantity": "2.0",
+      "utilization_percentage": "80.0",
+      "monthly_cost": 15526.477,
+      "wasted_cost": 3105.3,
+      "currency": "USD",
+      "allocation_count": 8,
+      "allocations": [
+        {
+          "allocation_id": "5313f29d-62c0-47db-a805-c9302af31544",
+          "party_name": "Andreas Schmidtöß",
+          "quantity": "1.0",
+          "valid_from": "2024-09-16",
+          "valid_to": null,
+          "project": "VC Advisory Services",
+          "application": null,
+          "platform": null,
+          "cost_center": null
+        },
+        {
+          "allocation_id": "cd5e304f-7701-4469-9d47-77d5fdfb0fe1",
+          "party_name": "Clara Weiss",
+          "quantity": "1.0",
+          "valid_from": "2024-09-16",
+          "valid_to": null,
+          "project": "VC Advisory Services",
+          "application": null,
+          "platform": null,
+          "cost_center": null
+        },
+        {
+          "allocation_id": "bcde601f-e09b-40b6-94ba-932619f17c58",
+          "party_name": "Jénnifer Clärk",
+          "quantity": "1.0",
+          "valid_from": "2024-09-16",
+          "valid_to": null,
+          "project": "VC Advisory Services",
+          "application": null,
+          "platform": null,
+          "cost_center": null
+        },
+        {
+          "allocation_id": "ce92ca30-ec85-4529-bed4-4f3e02d4b1eb",
+          "party_name": "Kätrin Höffmann",
+          "quantity": "1.0",
+          "valid_from": "2024-09-16",
+          "valid_to": null,
+          "project": "VC Advisory Services",
+          "application": null,
+          "platform": null,
+          "cost_center": null
+        },
+        {
+          "allocation_id": "c0e4c314-7342-40cb-be5d-a32ca1e14bee",
+          "party_name": "Lena Hart",
+          "quantity": "1.0",
+          "valid_from": "2024-09-16",
+          "valid_to": null,
+          "project": "VC Advisory Services",
+          "application": null,
+          "platform": null,
+          "cost_center": null
+        },
+        {
+          "allocation_id": "ca890264-5d68-4395-8fc0-15dd3ffc689b",
+          "party_name": "Róbert Davíš",
+          "quantity": "1.0",
+          "valid_from": "2024-09-16",
+          "valid_to": null,
+          "project": "VC Advisory Services",
+          "application": null,
+          "platform": null,
+          "cost_center": null
+        },
+        {
+          "allocation_id": "edab9653-dfd0-4e1d-9c2b-093fde371f8a",
+          "party_name": "Sophie Müller-Sänchez",
+          "quantity": "1.0",
+          "valid_from": "2024-09-16",
+          "valid_to": null,
+          "project": "VC Advisory Services",
+          "application": null,
+          "platform": null,
+          "cost_center": null
+        },
+        {
+          "allocation_id": "0d0059af-904c-41cd-81f3-05f392d8e795",
+          "party_name": "Tom Reid",
+          "quantity": "1.0",
+          "valid_from": "2024-09-16",
+          "valid_to": null,
+          "project": "VC Advisory Services",
+          "application": null,
+          "platform": null,
+          "cost_center": null
+        }
+      ]
+    },
+    {
+      "entity_id": "bcce6995-21ff-45d8-a966-210edaf38612",
+      "entity_name": "Eurex Ultra",
+      "entity_type": "contract_item",
+      "product_name": "Eurex Ultra",
+      "contract_name": "SID 234501",
+      "vendor_name": "Bloomberg Finance L.P.",
+      "total_quantity": "1.0",
+      "allocated_quantity": "1.0",
+      "unallocated_quantity": "0.0",
+      "utilization_percentage": "100.0",
+      "monthly_cost": 95.62,
+      "wasted_cost": 0.0,
+      "currency": "USD",
+      "allocation_count": 1,
+      "allocations": [
+        {
+          "allocation_id": "6e95325f-fb97-4547-8e3d-0c7adc50a91a",
+          "party_name": "Bob Jones",
+          "quantity": "1.0",
+          "valid_from": "2005-02-04",
+          "valid_to": null,
+          "project": "Low Latency Trading Upgrade",
+          "application": null,
+          "platform": null,
+          "cost_center": null
+        }
+      ]
+    }
+  ],
+  "insights": [
+    "USD3105 monthly cost is wasted on under-utilized items",
+    "Highest vendor utilization: Bloomberg Finance L.P. at 100.0%"
+  ]
+}

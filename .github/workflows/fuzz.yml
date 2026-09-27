@@ -1,0 +1,64 @@
+name: Fuzz
+
+# Go's fuzzer against the code that reads what reaches the CLI over the
+# network: a tool's answer, from its rows to the table, CSV and TSV they
+# print as (cmd/fuzz_test.go), and a release's version, checksums.txt and
+# archive (internal/update/fuzz_test.go). Thirty seconds each on a pull
+# request, to catch what a change breaks; ten minutes each every night, to
+# go deeper. `go test` in ci.yml already runs every seed and every input in
+# testdata/fuzz.
+on:
+  pull_request:
+  schedule:
+    - cron: "17 2 * * *"
+  workflow_dispatch:
+
+# Nothing by default; each job asks for what it needs. Every `uses:` is
+# pinned to a full commit SHA, with the release it came from in the comment.
+permissions: {}
+
+# A newer push to a pull request cancels the run for the older one.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: true
+
+jobs:
+  fuzz:
+    name: ${{ matrix.target }}
+    strategy:
+      # One target's failure says nothing about the others; see them all.
+      fail-fast: false
+      matrix:
+        include:
+          - { package: ./cmd, target: FuzzFindRows }
+          - { package: ./cmd, target: FuzzColumnsFor }
+          - { package: ./internal/update, target: FuzzVersions }
+          - { package: ./internal/update, target: FuzzChecksumFor }
+          - { package: ./internal/update, target: FuzzExtract }
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6.5.0
+        with:
+          go-version-file: go.mod
+      - name: fuzz
+        env:
+          PACKAGE: ${{ matrix.package }}
+          TARGET: ${{ matrix.target }}
+          FUZZTIME: ${{ github.event_name == 'pull_request' && '30s' || '10m' }}
+        run: go test -run '^$' -fuzz "^${TARGET}\$" -fuzztime "$FUZZTIME" "$PACKAGE"
+      # The fuzzer writes an input that fails to
+      # <package>/testdata/fuzz/<target>/. Commit it with the fix, and
+      # `go test` tries it on every run from then on.
+      - if: failure()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: fuzz-${{ matrix.target }}
+          path: ${{ matrix.package }}/testdata/fuzz/${{ matrix.target }}/
+          if-no-files-found: ignore
+          retention-days: 30

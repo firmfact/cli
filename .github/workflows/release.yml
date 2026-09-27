@@ -1,0 +1,188 @@
+name: Release
+
+on:
+  push:
+    # vX.Y.Z, optionally with a pre-release suffix; `firmfact update` only
+    # accepts tags of this shape.
+    tags: ["v[0-9]+.[0-9]+.[0-9]+*"]
+
+# Nothing by default; each job asks for what it needs. Every `uses:` is
+# pinned to a full commit SHA, with the release it came from in the comment.
+permissions: {}
+
+# One release at a time, and none cancelled half-way: two at once would both
+# commit the Homebrew cask and the Scoop manifest to their repositories
+# (firmfact/homebrew-tap and firmfact/scoop-bucket), and a cancelled one can
+# leave a release half uploaded, or without its build provenance. A second
+# tag waits for the first. GitHub keeps one run waiting per group, so of
+# three tags pushed together the middle one is cancelled; re-run it once the
+# others are done.
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: false
+
+jobs:
+  # The checks from ci.yml's Linux job, run again on the tagged commit before
+  # anything is built: the tests in random order, with the race detector and
+  # the same coverage gate. This job holds no write token and no secrets.
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6.5.0
+        with:
+          go-version-file: go.mod
+          # A tag build must not restore a module or build cache that another
+          # branch's run wrote.
+          cache: false
+      - name: gofmt
+        run: test -z "$(gofmt -l .)"
+      - name: go vet
+        run: go vet ./...
+      - name: go test
+        run: go test -race -shuffle=on -coverpkg=./... -coverprofile=cover.out ./...
+      - name: coverage
+        run: .github/coverage-gate cover.out
+      # Exact, as in govulncheck.yml; keep the two in step. The vulnerability
+      # database is fetched on every run, whatever the version.
+      - name: govulncheck
+        run: go run golang.org/x/vuln/cmd/govulncheck@v1.8.0 ./...
+      - name: go.mod and go.sum are tidy and verified
+        run: go mod tidy -diff && go mod verify
+      # The release's notes are its section of CHANGELOG.md. A tag without
+      # one, or with changes still under Unreleased, stops here, before
+      # anyone is asked to approve the release.
+      - name: release notes
+        run: go run ./internal/relnotes "$GITHUB_REF_NAME"
+
+  release:
+    needs: test
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    # The release environment requires a reviewer's approval before this job
+    # starts, and its secrets (RELEASE_SIGNING_KEY and RELEASE_REPOS_TOKEN;
+    # see RELEASING.md) belong to that environment only.
+    environment: release
+    # GoReleaser commits the Homebrew cask and Scoop manifest through the
+    # API, not git push, so checkout keeps no credentials. They go to
+    # repositories of their own, which GITHUB_TOKEN cannot write to; that
+    # is what RELEASE_REPOS_TOKEN below is for. No id-token: the provenance
+    # is signed in the attest job below, away from everything this job runs.
+    permissions:
+      contents: write # publish the release on this repository
+    outputs:
+      # success once checksums.txt is kept for the attest job.
+      checksums: ${{ steps.checksums.outcome }}
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          # GoReleaser reads the tags and history for the version, the
+          # previous tag and the commit's date.
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6.5.0
+        with:
+          go-version-file: go.mod
+          cache: false
+      # The shell completions and man pages the archives carry
+      # (.goreleaser.yaml, archives). A step of its own, without the token
+      # and the signing key a GoReleaser before hook would run with. Dated
+      # by the commit, so they are the same in every build of the tag.
+      - name: completions and man pages
+        run: go run ./internal/gendocs
+      # The text of the GitHub release (see the test job, and changelog in
+      # .goreleaser.yaml).
+      - name: release notes
+        run: go run ./internal/relnotes "$GITHUB_REF_NAME" > "$RUNNER_TEMP/release-notes.md"
+      # GoReleaser's sboms step runs syft, the one third-party program it
+      # starts, in a container pinned by digest that sees neither the
+      # signing key nor the token below (.github/sbom/syft). Pulled here,
+      # once, before GoReleaser runs it for each archive.
+      - name: syft in a container
+        run: |
+          echo "$GITHUB_WORKSPACE/.github/sbom" >> "$GITHUB_PATH"
+          .github/sbom/syft version
+      # The secrets below are in this step's environment, and so readable
+      # by goreleaser-action, GoReleaser and every Go command GoReleaser
+      # starts: the builds, and the signer built from this repository. syft
+      # alone does not see them: GoReleaser's sboms step passes it a few
+      # variables only, and .github/sbom/syft runs it in a container.
+      - uses: goreleaser/goreleaser-action@f06c13b6b1a9625abc9e6e439d9c05a8f2190e94 # v7.2.3
+        with:
+          distribution: goreleaser
+          # Exact: a GoReleaser upgrade is a reviewed change, not something a
+          # tag picks up.
+          version: v2.18.2
+          args: release --clean --release-notes ${{ runner.temp }}/release-notes.md
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Signs checksums.txt (.goreleaser.yaml, signs); the release fails
+          # without it.
+          RELEASE_SIGNING_KEY: ${{ secrets.RELEASE_SIGNING_KEY }}
+          # Commits the cask to firmfact/homebrew-tap and the manifest to
+          # firmfact/scoop-bucket, for a final release only (skip_upload:
+          # auto): a fine-grained token with contents: write on those two
+          # repositories and nothing else. A candidate never uses it, so it
+          # does not get it: only a candidate's tag has a hyphen, which
+          # starts its pre-release part (relnotes, in the test job, refuses
+          # a tag of any other shape).
+          RELEASE_REPOS_TOKEN: ${{ !contains(github.ref_name, '-') && secrets.RELEASE_REPOS_TOKEN || '' }}
+          # WINGET_GITHUB_TOKEN joins these in the change that switches
+          # winget on (RELEASING.md, winget); until then no step has it.
+      # checksums.txt, for the attest job. Kept even when GoReleaser failed,
+      # provided it wrote the file: GoReleaser publishes the GitHub release
+      # before it commits the cask and the manifest, so a token refused at
+      # the tap fails its step with the release already out, and an
+      # immutable release cannot be made again. Without this, that release
+      # would stay without its provenance.
+      - id: checksums
+        if: ${{ !cancelled() && hashFiles('dist/checksums.txt') != '' }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: checksums
+          path: dist/checksums.txt
+          if-no-files-found: error
+      # The release's winget manifests (.goreleaser.yaml, winget), kept with
+      # the run while winget is not switched on, to be tried on Windows
+      # before it is (RELEASING.md). GoReleaser writes them before it
+      # commits to the tap, so they are kept after a failure there too.
+      - if: ${{ !cancelled() && hashFiles('dist/winget/**') != '' }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: winget-manifests
+          path: dist/winget/
+          if-no-files-found: error
+
+  # Build provenance for every archive and SBOM listed in checksums.txt, so
+  # anyone can check a download with:
+  #   gh attestation verify <archive> --repo firmfact/cli \
+  #     --cert-identity https://github.com/firmfact/cli/.github/workflows/release.yml@refs/tags/v<version>
+  # firmfact.com's installers and /cli check that identity, so this file
+  # keeps its name.
+  #
+  # A job of its own, as the OIDC token that signs it could sign anything
+  # with that identity: only this job may ask for one, and it runs nothing
+  # but GitHub's artifact and attest actions. It runs when the release job
+  # kept checksums.txt, even if it then failed (see there).
+  attest:
+    needs: release
+    if: ${{ !cancelled() && needs.release.outputs.checksums == 'success' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      id-token: write # sign the build provenance
+      attestations: write # store that provenance on this repository
+    steps:
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: checksums
+          path: dist
+      - uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
+        with:
+          subject-checksums: ./dist/checksums.txt

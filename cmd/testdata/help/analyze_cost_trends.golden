@@ -1,0 +1,31 @@
+Answer "how much do we spend on X?" and "what's my <vendor> spend?". Returns the total plus month-by-month cost for a vendor (Bloomberg, Refinitiv/LSEG, FactSet, S&P, ICE…), contract, product, party or cost centre, with optional forecast. This is the primary tool for any vendor / contract / product spend or cost question — name the entity via entity_name (e.g. "Bloomberg"), no id lookup needed. These figures are private to the workspace; never estimate them from general knowledge.
+
+Usage:
+  ff analyze cost-trends [flags]
+
+Examples:
+  ff analyze cost-trends --entity-type contract
+
+Flags:
+      --calculation-type string   Cost calculation method: 'accrual_based' (default) spreads cost evenly over service period for accurate budget planning, 'cash_based' recognizes cost when payment is due for cash flow analysis. (one of: accrual_based, cash_based)
+      --columns strings           the columns to print, in order (comma-separated); where the tool takes fields, also the fields it sends
+      --entity-id string          ID of specific entity to analyze (optional - analyzes all if not provided)
+      --entity-name string        Exact or near-exact entity name/code to resolve directly when the user names a contract, product, vendor, or cost centre
+      --entity-type string        Type of entity to analyze (one of: contract, vendor, party, product, cost_center) (required)
+  -h, --help                      help for cost-trends
+      --include-insights          Include AI-generated insights about trends and anomalies (default: true)
+      --monthly                   also print the month-by-month totals, where the analysis has them
+      --months-back int           Number of months to look back from current date (default: 6)
+      --months-forward int        Number of months to project forward (default: 6)
+      --wide                      print every cell whole instead of fitting the table to the terminal
+
+Global Flags:
+      --debug              log each request and answer on stderr, with secrets redacted (or set FIRMFACT_DEBUG=1)
+      --format format      output format: table, json, csv or tsv (default: table; csv and tsv print a workspace command's rows)
+      --host string        Firmfact host (default: FIRMFACT_HOST, else the profile's, else https://firmfact.com); localhost:<port> for local development
+      --insecure-http      allow plain http to a host other than this machine (your token travels unencrypted)
+      --jq expression      filter the JSON output with a jq expression, such as '.data[].name'; implies --json
+      --json               print machine-readable JSON (the same as --format json)
+      --profile string     profile to use, one that exists (default: FIRMFACT_PROFILE, else the current profile)
+      --timeout duration   limit for each request, such as 90s (default: 60s, 90s for workspace commands and 5m for a chat, and 30s for the server to start answering; or set FIRMFACT_TIMEOUT)
+      --workspace string   workspace id or name (default: FIRMFACT_WORKSPACE, else the profile's workspace)

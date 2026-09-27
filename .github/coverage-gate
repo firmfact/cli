@@ -1,0 +1,17 @@
+#!/bin/sh
+# The coverage gate. ci.yml runs it on every pull request and release.yml
+# on the tagged commit, both on Linux, so a release is held to the floors
+# its pull requests were. It reads the profile that
+#   go test -race -shuffle=on -coverpkg=./... -coverprofile=cover.out ./...
+# wrote; the profile is the one argument, cover.out by default.
+#
+# The paths where a gap costs the most have floors of their own: sign-in
+# (auth), credential storage (config), self-update and its signature checks
+# (update), the shell files claim edits (claim), and the commands, generated
+# ones and signup among them (cmd). Each is set a few points below what the
+# tests reach, so a change that drops coverage there has to add tests; raise
+# a floor when the tests move well past it.
+set -eu
+exec go run ./internal/covergate -profile "${1:-cover.out}" -min 85 \
+	-floor internal/auth=90 -floor internal/config=85 -floor internal/update=90 \
+	-floor internal/claim=80 -floor cmd=88

@@ -1,0 +1,17 @@
+Total monthly cost:              USD 15,622.10
+Total wasted cost:               USD 3,105.30
+Period:                          2026-06-27 to 2026-09-27
+Average utilization:             90.0
+Overall utilization percentage:  81.82
+Total allocated:                 9.0
+Total items:                     2
+Total quantity:                  11.0
+Analysis type:                   utilization
+Entity type:                     contract_item
+
+- USD3105 monthly cost is wasted on under-utilized items
+- Highest vendor utilization: Bloomberg Finance L.P. at 100.0%
+
+ENTITY_NAME                           ENTITY_ID                             MONTHLY_COST  CURRENCY  ALLOCATED_QUANTITY  ALLOCATION_COUNT  CONTRACT_NAME                                  ENTITY_TYPE    PRODUCT_NAME                    TOTAL_QUANTITY  UNALLOCATED_QUANTITY  UTILIZATION_PERCENTAGE  VENDOR_NAME             WASTED_COST
+PitchBook Platform – Enterprise Tier  118b1b32-b400-4491-ac53-d847ba35a1b9     15,526.48  USD                      8.0                 8  Morningstar PitchBook Enterprise License 2025  contract_item  Morningstar PitchBook Platform            10.0                   2.0                    80.0  Morningstar, Inc.          3,105.30
+Eurex Ultra                           bcce6995-21ff-45d8-a966-210edaf38612         95.62  USD                      1.0                 1  SID 234501                                     contract_item  Eurex Ultra                                1.0                   0.0                   100.0  Bloomberg Finance L.P.         0.00

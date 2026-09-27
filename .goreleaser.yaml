@@ -1,0 +1,276 @@
+# Release build: `git tag vX.Y.Z && git push origin vX.Y.Z` runs
+# .github/workflows/release.yml, which tests the tagged commit and, once the
+# release is approved, runs this. RELEASING.md has the whole process, and
+# the secrets and settings it needs.
+#
+# There are no before hooks on purpose. Tests belong in the workflow's test
+# job, away from the release token, and a hook such as `go mod tidy` would
+# change the tree after GoReleaser has checked that it is clean. For the
+# same reason the shell completions and man pages the archives carry are
+# made by a workflow step of their own, before GoReleaser runs:
+#
+#   go run ./internal/gendocs    # writes completions/ and manpages/
+#
+# Without them the archives step fails rather than ship a release without.
+version: 2
+
+project_name: firmfact
+
+builds:
+  - id: firmfact
+    binary: firmfact
+    main: ./cmd/firmfact
+    env:
+      - CGO_ENABLED=0
+    goos: [linux, darwin, windows]
+    goarch: [amd64, arm64]
+    flags: [-trimpath]
+    # The version, and the commit with its date, which `firmfact version`
+    # and doctor show and the User-Agent carries (see cmd/firmfact/main.go).
+    # The commit's date, not the build's, keeps the build reproducible.
+    ldflags:
+      - -s -w -X main.version={{ .Version }} -X main.commit={{ .FullCommit }} -X main.date={{ .CommitDate }}
+    # With -trimpath and no cgo the binary depends only on the commit, the
+    # target and the Go version; this keeps the build time out of its mtime
+    # as well.
+    mod_timestamp: "{{ .CommitTimestamp }}"
+
+archives:
+  - id: firmfact
+    # firmfact_<version>_<os>_<arch>.tar.gz; `firmfact update` relies on
+    # this name and on checksums.txt and its signature below.
+    name_template: "firmfact_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    formats: [tar.gz]
+    format_overrides:
+      - goos: windows
+        formats: [zip]
+    # Reproducible archives: every entry gets the commit's time, root as
+    # owner and a fixed mode, rather than whatever the build machine's clock,
+    # user and umask say. Anyone who builds the tag with the same Go and
+    # GoReleaser gets byte-identical archives, so checksums.txt can be
+    # checked without trusting our build. CI's release-config job builds
+    # twice and compares.
+    builds_info:
+      owner: root
+      group: root
+      mode: 0755
+      mtime: "{{ .CommitDate }}"
+    files:
+      - src: README.md
+        info: &docinfo
+          owner: root
+          group: root
+          mode: 0644
+          mtime: "{{ .CommitDate }}"
+      - src: LICENSE
+        info: *docinfo
+      - src: NOTICE
+        info: *docinfo
+      # Every archive carries all four scripts and the man pages, Windows
+      # included: the cask finds its man pages by what the archives share.
+      # The scripts are named one by one, as a name that matches no file
+      # fails the build, where a pattern would only warn.
+      - src: completions/firmfact.bash
+        info: *docinfo
+      - src: completions/_firmfact
+        info: *docinfo
+      - src: completions/firmfact.fish
+        info: *docinfo
+      - src: completions/firmfact.ps1
+        info: *docinfo
+      - src: manpages/*.1
+        info: *docinfo
+
+checksum:
+  name_template: checksums.txt
+  algorithm: sha256
+
+# checksums.txt.sig: an Ed25519 signature over checksums.txt, which
+# `firmfact update` checks against the keys in internal/update/signature.go
+# before it trusts a single checksum. The key is the RELEASE_SIGNING_KEY
+# secret; without it, or with a key the CLI does not trust, the signer fails
+# and so does the release.
+signs:
+  - id: checksums
+    artifacts: checksum
+    cmd: go
+    args: ["run", "./internal/signrelease", "${artifact}", "${signature}"]
+    signature: "${artifact}.sig"
+
+# An SPDX SBOM per archive (firmfact_..._<os>_<arch>.tar.gz.sbom.json),
+# made by syft. The workflows run syft in a container pinned by digest
+# (.github/sbom/syft), so the one third-party program GoReleaser starts
+# cannot read the signing key or the release token in its environment.
+sboms:
+  - artifacts: archive
+
+# A snapshot (CI and local test builds) is numbered after the last release
+# with a dev pre-release, such as 0.3.1-dev+b005a6f after v0.3.0: it sorts
+# above that release and below the next, and the CLI knows it for a
+# development build, which the server's minimum version does not gate.
+snapshot:
+  version_template: "{{ incpatch .Version }}-dev+{{ .ShortCommit }}"
+
+# A release's notes are its section of CHANGELOG.md, which release.yml
+# hands GoReleaser with --release-notes (go run ./internal/relnotes), so
+# GoReleaser writes none of its own. Written by people, they can say what a
+# change means for its users, and what a breaking change asks of them, as
+# commit subjects cannot. What follows is only for a release made without
+# that flag: the commit subjects since the previous tag.
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      - "^Merge "
+
+# The Homebrew cask and the Scoop manifest each live in a repository of
+# their own, which is what the install commands on firmfact.com/cli name:
+#   brew install firmfact/tap/firmfact                  (firmfact/homebrew-tap, Casks/)
+#   scoop bucket add firmfact https://github.com/firmfact/scoop-bucket
+#   scoop install firmfact                              (firmfact/scoop-bucket, bucket/)
+# The workflow's own GITHUB_TOKEN can write to this repository only, so
+# GoReleaser commits to those two, through the API, with RELEASE_REPOS_TOKEN:
+# a fine-grained token with contents: write on those two repositories and
+# nothing else (see RELEASING.md).
+#
+# skip_upload: auto leaves both alone for a pre-release tag such as
+# v0.1.0-rc.1, whose binaries appear on GitHub only, and updates them for a
+# final one: someone who installed with brew or scoop never gets a release
+# candidate.
+homebrew_casks:
+  - name: firmfact
+    repository:
+      owner: firmfact
+      name: homebrew-tap
+      branch: main
+      token: "{{ .Env.RELEASE_REPOS_TOKEN }}"
+    directory: Casks
+    skip_upload: auto
+    homepage: https://firmfact.com/cli
+    description: "Sign up, sign in and query your firmfact workspaces from the command line"
+    commit_author:
+      name: firmfact release bot
+      email: support@firmfact.com
+    # Homebrew links these where man and the shells look.
+    manpages:
+      - "manpages/*.1"
+    completions:
+      bash: completions/firmfact.bash
+      zsh: completions/_firmfact
+      fish: completions/firmfact.fish
+    # The quarantine hook: the binary is not notarised yet, so without it
+    # macOS quarantines the download and Gatekeeper stops the first run.
+    # TODO: once the Apple Developer ID is in place and the darwin binaries
+    # are signed and notarised (notarize in GoReleaser), drop this block: a
+    # notarised binary needs no help past Gatekeeper.
+    #
+    # A custom block rather than GoReleaser's hooks.post.install, which
+    # writes a postflight stanza. Homebrew 7 deprecates that stanza: every
+    # brew command that loads the cask would warn and ask the user to report
+    # it to our tap (goreleaser/goreleaser#6870). Its replacement,
+    # postflight_steps, is unknown to a brew from before mid-2026, which
+    # reports an error on every load of a cask that uses it, so such a brew
+    # gets the postflight it knows. Homebrew's {{staged_path}} is written as
+    # a GoReleaser template string, which GoReleaser would otherwise take
+    # for its own.
+    custom_block: |
+      if ::Cask::DSL.method_defined?(:postflight_steps)
+        postflight_steps do
+          on_macos do
+            run "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "{{ "{{staged_path}}" }}/firmfact"]
+          end
+        end
+      else
+        postflight do
+          if OS.mac?
+            system_command "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "#{staged_path}/firmfact"]
+          end
+        end
+      end
+
+scoops:
+  - name: firmfact
+    repository:
+      owner: firmfact
+      name: scoop-bucket
+      branch: main
+      token: "{{ .Env.RELEASE_REPOS_TOKEN }}"
+    directory: bucket
+    skip_upload: auto
+    homepage: https://firmfact.com/cli
+    description: "Sign up, sign in and query your firmfact workspaces from the command line"
+    license: Apache-2.0
+    commit_author:
+      name: firmfact release bot
+      email: support@firmfact.com
+    # Scoop has no place for a completion script, and changing the user's
+    # PowerShell profile is not an installer's business, so it says how to
+    # load the one the archive carries. $dir is the app's "current"
+    # folder, which stays put across updates.
+    post_install:
+      - "Write-Host ''"
+      - "Write-Host 'Tab completion for firmfact: add this line to your PowerShell profile ($PROFILE):'"
+      - 'Write-Host "  . `"$dir\completions\firmfact.ps1`""'
+
+# winget, prepared but not yet published. A release writes the manifests
+# into dist/winget, where a snapshot build can be checked too. With
+# skip_upload: auto, a final release would commit them to a branch of our
+# fork of microsoft/winget-pkgs (firmfact/winget-pkgs) and open a pull
+# request against microsoft/winget-pkgs, with WINGET_GITHUB_TOKEN: a
+# classic token with public_repo, as a pull request to another owner's
+# repository needs. skip_upload stays true until the first release's
+# manifests have been tried by hand; the change that flips it to auto also
+# hands release.yml's GoReleaser step the token, which until then no step
+# has, as RELEASING.md describes.
+#
+# The package name is firmfact, the command's own name, which winget shows.
+# The docs and the CLI's upgrade hint name the package by its identifier,
+# with --exact: winget matches a bare name against every publisher's
+# packages.
+winget:
+  - name: firmfact
+    package_identifier: Firmfact.CLI
+    package_name: firmfact
+    publisher: Dutchcode B.V.
+    publisher_url: https://firmfact.com
+    publisher_support_url: https://github.com/firmfact/cli/issues
+    privacy_url: https://firmfact.com/privacy
+    author: Dutchcode B.V.
+    copyright: Copyright 2026 Dutchcode B.V.
+    homepage: https://firmfact.com/cli
+    license: Apache-2.0
+    license_url: https://github.com/firmfact/cli/blob/main/LICENSE
+    short_description: "Your firm's single source of fact, from the command line."
+    description: |-
+      Firmfact is licence management for the complex software and data subscriptions that need expert interpretation. This CLI brings firmfact to your terminal: create an account, sign in and ask your workspaces questions, from a prompt or from a script.
+    release_notes_url: "https://github.com/firmfact/cli/releases/tag/{{ .Tag }}"
+    tags: [cli, firmfact, licence-management, market-data, mcp]
+    # The zip archive, installed as a portable command: winget unpacks it
+    # and puts firmfact.exe on the PATH.
+    ids: [firmfact]
+    # winget-pkgs wants each version's manifests at
+    # manifests/<first letter>/<publisher part>/<package part>/<version>.
+    path: "manifests/f/Firmfact/CLI/{{ .Version }}"
+    commit_author:
+      name: firmfact release bot
+      email: support@firmfact.com
+    commit_msg_template: "New version: Firmfact.CLI {{ .Version }}"
+    skip_upload: true
+    repository:
+      owner: firmfact
+      name: winget-pkgs
+      branch: "Firmfact.CLI-{{ .Version }}"
+      token: "{{ .Env.WINGET_GITHUB_TOKEN }}"
+      pull_request:
+        enabled: true
+        base:
+          owner: microsoft
+          name: winget-pkgs
+          branch: master
+
+release:
+  github:
+    owner: firmfact
+    name: cli
+  draft: false
+  prerelease: auto

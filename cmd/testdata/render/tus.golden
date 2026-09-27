@@ -1,0 +1,7 @@
+currency: USD
+threshold: 0
+total_unallocated_cost: 10865.7
+
+MONTHLY_COST  CURRENCY  ALLOCATED_QUANTITY  CONTRACT_ID                           CONTRACT_ITEM_ID                      CONTRACT_ITEM_NAME                    CONTRACT_NAME                              TOTAL_QUANTITY  UNALLOCATED_COST  UNALLOCATED_PERCENTAGE  UNALLOCATED_QUANTITY  VENDOR_ID                             VENDOR_NAME
+   30,307.25  USD                     13.0  abfbbf70-2eb5-42c5-90d1-da1735452123  58ebe85e-cdaf-4720-926f-3295eae25c1c  S&P Capital IQ Pro - Research Bundle  S&P Global Enterprise Data Agreement 2025            15.0          4,040.97                    13.3                   2.0  06453dc9-082e-4779-bc7e-0edd9cc5ccb2  S&P Global Inc.
+   10,391.06  USD                      6.0  d324f1ff-9698-4479-a311-8269f7bf969f  42241dd1-e856-4890-8a89-ec31cd2d0060  ICE Connect Workstation               ICE Market Data Master Agreement 2025                 8.0          2,597.76                    25.0                   2.0  7c99e03e-f8d1-4915-b3eb-9acf6f23c1d2  ICE Data Services
