@@ -164,7 +164,8 @@ func selfUnchanged(t *testing.T) func() {
 
 // While every release is a pre-release, GitHub names no latest release.
 // update says so, and how to take the newest pre-release, rather than
-// blaming the connection; nothing is wrong, so it exits 0.
+// blaming the connection; nothing is wrong, so it exits 0. It suggests
+// --pre only when that would install something.
 func TestUpdateWithPreReleasesOnly(t *testing.T) {
 	isolate(t)
 	directDownload(t)
@@ -172,11 +173,16 @@ func TestUpdateWithPreReleasesOnly(t *testing.T) {
 	g := &github{feed: []string{"v0.1.0-rc.1", "untagged-4b8e2f0c7d1a"}}
 	g.serve(t)
 
-	stdout, _, err := runAs("ff", "--host", host, "update")
-	if err != nil || stdout != "No release is published yet, only pre-releases. To take the newest pre-release: ff update --pre\n" {
-		t.Errorf("update: %q, %v", stdout, err)
+	for version, want := range map[string]string{
+		"0.0.9":      "No release is published yet, only pre-releases. To take the newest pre-release: firmfact update --pre\n",
+		"0.1.0-rc.1": "No release is published yet, only pre-releases, and you have the newest (0.1.0-rc.1).\n",
+		"test":       "No release is published yet, only pre-releases.\n",
+	} {
+		if stdout, _, err := run(version, "--host", host, "update"); err != nil || stdout != want {
+			t.Errorf("update from %s: %q, %v", version, stdout, err)
+		}
 	}
-	stdout, _, err = run("0.0.9", "--host", host, "--json", "update")
+	stdout, _, err := run("0.0.9", "--host", host, "--json", "update")
 	var got updateResult
 	decodeOnly(t, "update", stdout, &got)
 	if err != nil || got != (updateResult{Version: "0.0.9", Newest: "0.1.0-rc.1"}) {

@@ -137,8 +137,17 @@ func updateToNewest(ctx context.Context, app *App, pre bool) error {
 		if app.JSONOutput {
 			return app.PrintJSON(result)
 		}
-		if found.Newest != "" {
+		switch {
+		case update.Newer(found.Newest, api.Version):
 			fmt.Fprintf(app.Out, "No release is published yet, only pre-releases. To take the newest pre-release: %s update --pre\n", app.Name)
+			return nil
+		case found.Newest != "" && update.IsRelease(api.Version):
+			// update --pre would find nothing newer to install.
+			fmt.Fprintf(app.Out, "No release is published yet, only pre-releases, and you have the newest (%s).\n", api.Version)
+			return nil
+		case found.Newest != "":
+			// A build of its own, which update --pre would not replace.
+			fmt.Fprintln(app.Out, "No release is published yet, only pre-releases.")
 			return nil
 		}
 		fmt.Fprintln(app.Out, "No release is published yet.")

@@ -92,5 +92,6 @@ change with it, so they are not listed here.
 
 - While only pre-releases were published, `update` said it could not find
   the latest release and to check your connection. It now says that no
-  release is published yet and how to take the newest pre-release, and
-  speaks of the connection only when GitHub cannot be reached.
+  release is published yet and, when there is a newer pre-release than
+  yours, how to take it, and speaks of the connection only when GitHub
+  cannot be reached.
