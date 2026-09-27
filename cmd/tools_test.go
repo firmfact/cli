@@ -187,6 +187,27 @@ func signedInWithTools(t *testing.T, host string, tools ...mcp.Tool) {
 	}
 }
 
+// tools refresh counts the commands it loaded, and the tools that have
+// none, in words that agree with the count.
+func TestToolsRefreshCounts(t *testing.T) {
+	isolate(t)
+	cases := []struct {
+		tools []mcp.Tool
+		want  string
+	}{
+		{[]mcp.Tool{listVendors}, "Loaded 1 workspace command.\n"},
+		{serverTools(t), "Loaded 15 workspace commands.\n1 tool has no command; `firmfact tools list` says why.\n"},
+	}
+	for _, c := range cases {
+		srv := (&mcpServer{tools: c.tools}).start(t)
+		storedToken(t, srv.URL, time.Hour)
+		stdout, stderr, err := run("test", "--host", srv.URL, "tools", "refresh")
+		if err != nil || stdout != c.want {
+			t.Errorf("tools refresh of %d tools: %q, %v (stderr %q); want %q", len(c.tools), stdout, err, stderr, c.want)
+		}
+	}
+}
+
 // The generated commands come from the tool cache of the host named by
 // --host: `vendors list` calls list_vendors with the flags that were set and
 // the workspace, prints the rows as a table, and the count, the paging and

@@ -124,7 +124,7 @@ func refreshToolsQuietly(ctx context.Context, app *App, c *api.Client, announce 
 	}
 	loaded = commandCount(planToolCommands(tools, app.builtins))
 	if announce {
-		fmt.Fprintf(app.Out, "Loaded %d workspace commands; see `%s --help`.\n", loaded, app.Name)
+		fmt.Fprintf(app.Out, "Loaded %d workspace %s; see `%s --help`.\n", loaded, plural(loaded, "command", "commands"), app.Name)
 	}
 	return loaded, true
 }
@@ -165,9 +165,10 @@ func newToolsCommand(app *App) *cobra.Command {
 			if app.JSONOutput {
 				return app.PrintJSON(listedTools(plans))
 			}
-			fmt.Fprintf(app.Out, "Loaded %d workspace commands.\n", commandCount(plans))
-			if skipped := len(plans) - commandCount(plans); skipped > 0 {
-				fmt.Fprintf(app.Out, "%d tools have no command; `%s tools list` says why.\n", skipped, app.Name)
+			n := commandCount(plans)
+			fmt.Fprintf(app.Out, "Loaded %d workspace %s.\n", n, plural(n, "command", "commands"))
+			if skipped := len(plans) - n; skipped > 0 {
+				fmt.Fprintf(app.Out, "%d %s no command; `%s tools list` says why.\n", skipped, plural(skipped, "tool has", "tools have"), app.Name)
 			}
 			return nil
 		},
