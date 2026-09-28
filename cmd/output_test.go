@@ -264,7 +264,9 @@ func TestAllFetchesEveryPage(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if lines := strings.Split(strings.TrimSpace(stdout), "\n"); len(lines) != 6 || !strings.HasPrefix(lines[5], "Vendor 5") {
+	// The table, then the footnotes on its costs.
+	table, notes, _ := strings.Cut(stdout, "\n\n")
+	if lines := strings.Split(table, "\n"); len(lines) != 6 || !strings.HasPrefix(lines[5], "Vendor 5") || !strings.HasPrefix(notes, "13-month cost: ") {
 		t.Errorf("table = %q", stdout)
 	}
 

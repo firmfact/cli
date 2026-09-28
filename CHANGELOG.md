@@ -94,7 +94,10 @@ change with it, so they are not listed here.
   say what each covers, and a line under the table counts the list. A Demo
   workspace's data gets one quiet line on stderr where the service's notice
   for an assistant was. `--wide` adds the fields the table leaves out, such
-  as IDs; CSV, TSV and `--json` keep every field under its own name.
+  as IDs; CSV, TSV and `--json` keep every field under its own name. From a
+  service that does not describe its lists yet, a table has headers in
+  words and footnotes that say its costs are in the workspace's base
+  currency.
 - An exit status for each kind of failure, and errors as JSON on stderr with
   `--json`.
 - Profiles for more than one account or host, and `FIRMFACT_HOST`,

@@ -21,7 +21,8 @@ import (
 //
 // The title, columns, labels and footnotes come from the list's display
 // block (see list_display.go); from a service that sends none, the table
-// has no title and makes its headers from the field names. Under the
+// has no title, makes its headers from the field names, and has the
+// CLI's own footnotes for the costs it shows. Under the
 // table, on stderr, the count says how many there are in all and how to
 // get the next page, as psql's "(37 rows)" does; after the footnotes a
 // quiet line says when the data is sample data (see printToolOutput).
@@ -53,9 +54,13 @@ func printList(app *App, out toolOutput, rows []map[string]any, opts renderOptio
 	if count != "" {
 		fmt.Fprintln(app.Err, count)
 	}
-	if d != nil && len(d.footnotes) > 0 {
+	notes := fallbackFootnotes(t)
+	if d != nil {
+		notes = d.footnotes
+	}
+	if len(notes) > 0 {
 		fmt.Fprintln(app.Out)
-		for _, note := range d.footnotes {
+		for _, note := range notes {
 			for _, line := range wrapWords(note, width) {
 				fmt.Fprintln(app.Out, line)
 			}

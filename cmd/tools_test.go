@@ -513,7 +513,9 @@ func TestToolResultShapes(t *testing.T) {
 			}
 			switch {
 			case tc.rows > 0:
-				lines := strings.Split(strings.TrimSpace(stdout), "\n")
+				// The table, above its footnotes.
+				table, _, _ := strings.Cut(stdout, "\n\n")
+				lines := strings.Split(strings.TrimSpace(table), "\n")
 				if len(lines) != tc.rows+1 || !strings.HasPrefix(lines[0], "NAME") ||
 					!strings.HasPrefix(lines[1], "Acme") || !strings.HasPrefix(lines[2], "Globex") {
 					t.Errorf("want a table of %d rows, got %q", tc.rows, stdout)

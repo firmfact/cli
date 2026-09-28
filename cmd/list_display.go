@@ -167,6 +167,7 @@ var fieldLabels = map[string]string{
 	"userdef_id":                     "Code",
 	"currency_userdef_id":            "Invoicing currency",
 	"base_currency_userdef_id":       "Base currency",
+	"cost":                           "13-month cost",
 	"monthly_cost":                   "This month",
 	"party_name":                     "Organisational entity",
 	"party_userdef_id":               "Organisational entity",
@@ -174,6 +175,34 @@ var fieldLabels = map[string]string{
 	"db_contract_item_userdef_id":    "Linked source item",
 	"master_contract_userdef_id":     "Master contract",
 	"supersedes_contract_userdef_id": "Replaces contract",
+}
+
+// fallbackFootnotes are the footnotes of a list from a service that sends
+// no display block, for the costs its table shows: the service's own, in
+// English (see fieldLabels), but for the currency, which the CLI does not
+// know. Without them, costs in the base currency would stand beside a
+// column of invoicing currencies, and read as if in those (the service
+// says which they are in COST_FIELDS_NOTE, for an assistant).
+func fallbackFootnotes(t laidOut) []string {
+	shown := map[string]bool{}
+	for _, c := range t.cols {
+		shown[c.field.key] = true
+	}
+	var notes []string
+	if shown["cost"] {
+		notes = append(notes, fieldLabel("cost")+": cash basis, this month and six months either side.")
+	}
+	if shown["monthly_cost"] {
+		notes = append(notes, fieldLabel("monthly_cost")+": accrual basis.")
+	}
+	if len(notes) == 0 {
+		return nil
+	}
+	currency := "Amounts in the workspace base currency."
+	if shown["currency_userdef_id"] {
+		currency = "Amounts in the workspace base currency, not the invoicing currency."
+	}
+	return append(notes, currency)
 }
 
 // britishWords are the words of the service's field and tool names that

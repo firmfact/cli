@@ -203,6 +203,32 @@ func TestListFieldsWithoutADisplayBlock(t *testing.T) {
 	}
 }
 
+// Without a display block, a table that shows costs says what they cover
+// and that they are in the workspace base currency, not the invoicing
+// currency when that is shown beside them; one that shows no costs, or
+// had to leave them out to fit, says nothing of them.
+func TestListFootnotesWithoutADisplayBlock(t *testing.T) {
+	rows := []map[string]any{{"name": "Acme Market Data Services International", "cost": 1262160.0, "monthly_cost": 97089.23, "currency_userdef_id": "USD"}}
+	notes := func(keys []string, width int) string {
+		return strings.Join(fallbackFootnotes(layTable(rows, listFields(rows, nil, tableStyle{columns: keys}), width)), " | ")
+	}
+	for _, c := range []struct {
+		keys  []string
+		width int
+		want  string
+	}{
+		{nil, 0, "13-month cost: cash basis, this month and six months either side. | This month: accrual basis. | " +
+			"Amounts in the workspace base currency, not the invoicing currency."},
+		{[]string{"name", "monthly_cost"}, 0, "This month: accrual basis. | Amounts in the workspace base currency."},
+		{[]string{"name", "currency_userdef_id"}, 0, ""},
+		{[]string{"name", "monthly_cost", "cost"}, 30, "This month: accrual basis. | Amounts in the workspace base currency."},
+	} {
+		if got := notes(c.keys, c.width); got != c.want {
+			t.Errorf("%v at %d: %q, want %q", c.keys, c.width, got, c.want)
+		}
+	}
+}
+
 // A display block's columns come first, in its order and under its labels;
 // --wide adds the fields it keeps back and any it does not name; a block
 // whose columns no row has counts as none.

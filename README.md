@@ -294,7 +294,8 @@ its footnotes alone.
 the currency it invoices in, and `--columns` picks fields by the names
 `--json` and CSV use (`--columns name,currency_userdef_id`). A service that
 does not describe its lists yet gets every field but the internal IDs, with
-headers in words, and no title.
+headers in words, no title, and footnotes that say what the costs cover
+and that they are in the workspace's base currency.
 
 An analysis's table starts with the columns you look for first (name, id,
 userdef_id, status, cost, monthly_cost, currency) and then shows every
