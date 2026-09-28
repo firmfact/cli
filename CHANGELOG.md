@@ -23,6 +23,8 @@ change with it, so they are not listed here.
 
 ## Unreleased
 
+## 0.1.0 - 2026-09-28
+
 ### Added
 
 - `signup` creates an account from the terminal: your work email, a code
@@ -111,8 +113,8 @@ change with it, so they are not listed here.
   `update --version` installs the release it names, both with the same
   checks; going back to an older release asks first, or needs `--yes`. On
   a pre-release, the daily check tells you of newer pre-releases too. For a
-  copy that Homebrew, Scoop or winget installed, `update` says how that
-  package manager keeps it at a version, where it can.
+  copy that Homebrew or Scoop installed, `update` says how that package
+  manager keeps it at a version, where it can.
 - `doctor` checks the installation, the proxy, the connection and the
   sign-in; `version` shows the build; `--debug` (or `FIRMFACT_DEBUG=1`) logs
   every request, with tokens, codes and passwords redacted.
