@@ -23,6 +23,8 @@ change with it, so they are not listed here.
 
 ## Unreleased
 
+## 0.1.1 - 2026-09-28
+
 ### Changed
 
 - Colours follow one rule: your terminal's own green for results that went
