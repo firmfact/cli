@@ -428,14 +428,14 @@ possible duplicates, so a block with unmatched rows says so. Rows set aside
 on the review page, rows that match records you cannot view, and rows past
 those the review page shows (which publishing imports as they are) are
 counted too, when there are any, and so are the people in the workspace
-whom an HR file no longer lists. The type names are in your language, as
-firmfact shows them.
+an HR file no longer lists, whom publishing may mark as leavers. The type
+names are in your language, as firmfact shows them.
 
 ```text
 HR-2026-09.xlsx: HR file, ready for review
   Departments    12 read: 1 new, 1 with changes (Parent unit), 10 unchanged
   Cost centres    8 read: 8 unchanged
-  People        250 read: 230 new, 15 with changes (Department, Cost centre), 5 unmatched; 3 no longer in the file
+  People        250 read: 230 new, 15 with changes (Department, Cost centre), 5 unmatched; 3 no longer in the file, whom publishing may mark as leavers
   Unmatched   Publishing may add unmatched rows as new records, possible
               duplicates, unless someone matches them first.
   To review   An item (Jane Smith): choose which changes to apply.

@@ -324,7 +324,10 @@ func recordLabel(r *upload.RecordCounts) string {
 
 // recordCounts is what follows "read" on a type's line: its counts that
 // are not zero, and the people the file no longer lists, who are not rows
-// of it.
+// of it. Publishing ends those people, or asks about one it is not sure
+// of (one with allocations, or who may be a new row under another name),
+// and a person may set one aside first: the CLI cannot tell which, so
+// the line says publishing "may".
 func recordCounts(r *upload.RecordCounts) string {
 	var parts []string
 	add := func(n int, text string) {
@@ -348,7 +351,7 @@ func recordCounts(r *upload.RecordCounts) string {
 		text = ": " + strings.Join(parts, ", ")
 	}
 	if r.Leavers > 0 {
-		text += "; " + countText(r.Leavers) + " no longer in the file"
+		text += "; " + countText(r.Leavers) + " no longer in the file, whom publishing may mark as leavers"
 	}
 	return text
 }

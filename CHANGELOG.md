@@ -49,7 +49,9 @@ change with it, so they are not listed here.
   file, a line for each type of record says how many rows publishing
   would add, change (and in which fields) or leave as they are, and how
   many a person should match first, as publishing may add those as new
-  records. Nothing is booked until someone publishes it there.
+  records; an HR file's line for people counts those it no longer lists,
+  whom publishing may mark as leavers. Nothing is booked until someone
+  publishes it there.
   Files already in the workspace are not sent again;
   `--related` sends files as one group, counted once; an upload to the
   Demo workspace that nobody named asks first, or needs `--yes`. A file of

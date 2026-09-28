@@ -5,7 +5,7 @@ older-server.xlsx: spreadsheet, ready for review
 counts.csv: spreadsheet, published
   Locations         40 read
   Cost centres       3 read: 3 with changes
-  People             0 read; 4 no longer in the file
+  People             0 read; 4 no longer in the file, whom publishing may mark as leavers
   Projects      12,500 read: 12,500 new
   Platforms          7 read: 7 with changes (Name, Owner, Notes, Valid from, Valid to and 2 more)
   Allocations        6 read: 5 unchanged, 1 matched to a record you cannot view
