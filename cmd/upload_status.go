@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"regexp"
 	"strings"
-	"text/tabwriter"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -224,6 +223,7 @@ func (s *uploadStatus) varianceGate(docs []*upload.Document) *varianceGate {
 func (s *uploadStatus) print(docs []*upload.Document, missing []string) {
 	w := s.app.Out
 	width := wrapWidth(w)
+	style := resultStyleFor(s.app, s.failOnVariance)
 	for i, d := range docs {
 		if i > 0 {
 			fmt.Fprintln(w)
@@ -232,10 +232,10 @@ func (s *uploadStatus) print(docs []*upload.Document, missing []string) {
 		if name == "" {
 			name = "Document " + ui.SafeLine(d.ID)
 		}
-		printDocument(w, name, d, false, width)
+		style.printDocument(w, name, d, false, width)
 	}
 	if len(docs) > 1 {
-		fmt.Fprintf(w, "\n%s: %s.\n", countDocuments(len(docs)), stateCounts(docs))
+		fmt.Fprintf(w, "\n%s: %s.\n", countDocuments(len(docs)), style.stateCounts(docs))
 	}
 	if waitingForReview(docs) {
 		fmt.Fprintln(w, nothingBooked)
@@ -258,7 +258,7 @@ func (s *uploadStatus) result(docs []*upload.Document, missing []string, timedOu
 	unread, reading := 0, 0
 	for _, d := range docs {
 		switch {
-		case d.State == upload.StateFailed, d.State == stateMissing, d.State == upload.StateSkipped && d.Reason == "over_quota":
+		case failedDocument(d):
 			unread++
 		case upload.InProgress(d.State):
 			reading++
@@ -298,12 +298,12 @@ func (s *uploadStatus) recent(ctx context.Context, limit int) error {
 		fmt.Fprintln(w, "No uploads of yours in this workspace yet.")
 		return nil
 	}
-	tw := tabwriter.NewWriter(w, 0, 2, 2, ' ', 0)
-	fmt.Fprintln(tw, "UPLOADED\tFILE\tSTATE\tID")
+	style := resultStyle{m: s.app.Mode()}
+	rows := [][]string{{"UPLOADED", "FILE", "STATE", "ID"}}
 	for _, d := range docs {
-		fmt.Fprintf(tw, "%s\t%s\t%s\t%s\n", uploadedAt(d.CreatedAt), ui.SafeLine(orDefault(d.Filename, "-")), stateWords(d), ui.SafeLine(d.ID))
+		rows = append(rows, []string{uploadedAt(d.CreatedAt), ui.SafeLine(orDefault(d.Filename, "-")), style.state(d), ui.SafeLine(d.ID)})
 	}
-	if err := tw.Flush(); err != nil {
+	if err := writeColumns(w, rows); err != nil {
 		return err
 	}
 	fmt.Fprintf(w, "Show one in full with `%s upload status <id>`.\n", s.app.Name)

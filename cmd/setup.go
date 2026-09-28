@@ -242,9 +242,9 @@ func waitForSetup(ctx context.Context, app *App, c *api.Client, w setupWait) (*S
 					fmt.Fprintln(out, "  100%  Ready.")
 				}
 				if w.signup {
-					fmt.Fprintf(out, "%s Open %s in your browser, or stay here.\n", mode.Rainbow("Your Demo workspace is ready."), c.Host)
+					fmt.Fprintf(out, "%s Open %s in your browser, or stay here.\n", mode.Green("Your Demo workspace is ready."), c.Host)
 				} else {
-					fmt.Fprintln(out, mode.Rainbow(w.subject()+" is ready."))
+					fmt.Fprintln(out, mode.Green(w.subject()+" is ready."))
 				}
 				return st, nil
 			case setupFailed, setupStalled:

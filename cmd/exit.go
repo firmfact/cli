@@ -171,8 +171,9 @@ func rpcExitCode(e *mcp.RPCError) int {
 // ReportError tells the user about err on w and returns the exit status.
 // With --json it writes {"error":{"message","code","status"}} on one line,
 // so a script reads the reason without parsing prose; otherwise one
-// "error:" line. An interrupt gets no line of its own: the user knows about
-// that.
+// "error:" line, its prefix in red when w itself shows colour (stderr on a
+// terminal, whatever stdout is). An interrupt gets no line of its own: the
+// user knows about that.
 func ReportError(w io.Writer, err error, asJSON bool) int {
 	code, status := Classify(err)
 	// Errors often carry the server's own text (a tool error, a login
@@ -196,7 +197,7 @@ func ReportError(w io.Writer, err error, asJSON bool) int {
 			_, _ = w.Write(ui.SafeJSON(buf.Bytes()))
 		}
 	case code != ExitInterrupted:
-		fmt.Fprintln(w, "error:", msg)
+		fmt.Fprintln(w, ui.Detect(w).Red("error:"), msg)
 	}
 	return code
 }

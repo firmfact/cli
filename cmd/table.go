@@ -191,7 +191,9 @@ func (t laidOut) noteDropped(notes io.Writer) {
 		len(t.dropped), plural(len(t.dropped), "column", "columns"), strings.Join(names, ", "))
 }
 
-// write prints the header and a line per row.
+// write prints the header and a line per row. Its cells are plain text,
+// measured and cut by their characters; colour in one would count as
+// characters too (writeColumns lays out cells with colour in them).
 func (t laidOut) write(w io.Writer) error {
 	if len(t.cols) == 0 {
 		return nil
@@ -371,6 +373,35 @@ func cutCell(s string, width int) string {
 	}
 	runes := []rune(s)
 	return strings.TrimRight(string(runes[:width-1]), " ") + "…"
+}
+
+// writeColumns writes rows of cells as columns two spaces apart, every
+// cell but a row's last padded to the widest in its column, as
+// text/tabwriter lays them out. A cell is measured by the columns it takes
+// on a terminal (see ui.Columns), where tabwriter counts the characters of
+// its colour codes too: a coloured cell lines up as a plain one does.
+func writeColumns(w io.Writer, rows [][]string) error {
+	var widths []int
+	for _, row := range rows {
+		for i := 0; i < len(row)-1; i++ {
+			if i == len(widths) {
+				widths = append(widths, 0)
+			}
+			widths[i] = max(widths[i], ui.Columns(row[i]))
+		}
+	}
+	var b strings.Builder
+	for _, row := range rows {
+		for i, cell := range row {
+			b.WriteString(cell)
+			if i < len(row)-1 {
+				b.WriteString(strings.Repeat(" ", widths[i]-ui.Columns(cell)+columnGap))
+			}
+		}
+		b.WriteString("\n")
+	}
+	_, err := io.WriteString(w, b.String())
+	return err
 }
 
 func plural(n int, one, many string) string {

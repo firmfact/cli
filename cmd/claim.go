@@ -127,7 +127,7 @@ exactly what was added.`, app.Name),
 				return nil
 			}
 			fmt.Fprintf(app.Out, "%s Open a new terminal (or run: source %s), then try: %s whoami\n",
-				m.Rainbow(name+" is yours."), orDefault(plan.RCFile, "~/.bashrc"), name)
+				m.Green(name+" is yours."), orDefault(plan.RCFile, "~/.bashrc"), name)
 			if plan.Backup != "" {
 				fmt.Fprintf(app.Out, "The previous %s is saved as %s.\n", plan.RCFile, plan.Backup)
 			}

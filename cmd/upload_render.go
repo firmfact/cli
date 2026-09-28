@@ -281,24 +281,25 @@ func (r *uploadRun) printResults() {
 	}
 	fmt.Fprintln(w)
 	width := wrapWidth(w)
+	style := r.style()
 	blocks := len(docs) <= maxBlocks
 	if blocks {
 		for i, f := range docs {
 			if i > 0 {
 				fmt.Fprintln(w)
 			}
-			printDocument(w, f.label(), f.doc, f.outcome == outcomeDuplicate, width)
+			style.printDocument(w, f.label(), f.doc, f.outcome == outcomeDuplicate, width)
 		}
 		for i, f := range problems {
 			if i > 0 || len(docs) > 0 {
 				fmt.Fprintln(w)
 			}
-			printProblem(w, f, width)
+			style.printProblem(w, f, width)
 		}
 	} else {
-		printDocumentTable(w, docs)
+		style.printDocumentTable(w, docs)
 		for _, f := range problems {
-			fmt.Fprintf(w, "  %s\n", problemLine(f))
+			fmt.Fprintf(w, "  %s\n", style.problemLine(f))
 		}
 	}
 	// A line about the whole batch stands apart from the blocks above it.
@@ -309,7 +310,7 @@ func (r *uploadRun) printResults() {
 		fmt.Fprintf(w, "%d %s not sent: %s.\n", notSent, plural(notSent, "file was", "files were"), r.stop.message)
 	}
 	if len(r.files) > 1 {
-		fmt.Fprintln(w, r.summaryLine())
+		fmt.Fprintln(w, r.summaryLine(style))
 	}
 	ids := r.documentIDs()
 	if !blocks {
@@ -326,8 +327,12 @@ func (r *uploadRun) printResults() {
 	r.printVarianceSteps()
 }
 
-// printProblem is the block of a file that was not stored on its way.
-func printProblem(w io.Writer, f *uploadFile, width int) {
+// style is how the upload's results are coloured on its stdout.
+func (r *uploadRun) style() resultStyle { return resultStyleFor(r.app, r.flags.failOnVariance) }
+
+// printProblem is the block of a file that was not stored on its way,
+// what became of it in red.
+func (s resultStyle) printProblem(w io.Writer, f *uploadFile, width int) {
 	head := "not stored"
 	switch f.outcome {
 	case outcomeBusy:
@@ -337,7 +342,7 @@ func printProblem(w io.Writer, f *uploadFile, width int) {
 	case outcomeFailed, outcomeNotSent:
 		head = "not sent"
 	}
-	fmt.Fprintf(w, "%s: %s\n", f.label(), head)
+	fmt.Fprintf(w, "%s: %s\n", f.label(), s.m.Red(head))
 	for _, line := range wrapText(problemText(f), width-2) {
 		fmt.Fprintf(w, "  %s\n", line)
 	}
@@ -352,15 +357,18 @@ func problemText(f *uploadFile) string {
 	return "refused (" + ui.SafeLine(orDefault(f.code, "no reason given")) + ")"
 }
 
-// problemLine is f and why it was not stored, on one line. The server's
-// sentences start with the file's name, which is then not said twice, as
-// in the plan (printRefusals).
-func problemLine(f *uploadFile) string {
+// problemLine is f and why it was not stored, on one line, the why in
+// red. The server's sentences start with the file's name, which is then
+// not said twice, as in the plan (printRefusals).
+func (s resultStyle) problemLine(f *uploadFile) string {
 	text := problemText(f)
-	if strings.HasPrefix(text, f.label()) {
-		return text
+	if rest, ok := strings.CutPrefix(text, f.label()+": "); ok {
+		return f.label() + ": " + s.m.Red(rest)
 	}
-	return f.label() + ": " + text
+	if strings.HasPrefix(text, f.label()) {
+		return s.m.Red(text)
+	}
+	return f.label() + ": " + s.m.Red(text)
 }
 
 // documentsPage is the web page that lists a workspace's documents, where
@@ -376,8 +384,8 @@ func documentsPage(files []*uploadFile) string {
 }
 
 // summaryLine sums up a batch: what was uploaded, and the states of the
-// documents.
-func (r *uploadRun) summaryLine() string {
+// documents, what failed in red as style paints it.
+func (r *uploadRun) summaryLine(style resultStyle) string {
 	counts := map[string]int{}
 	for _, f := range r.files {
 		counts[f.outcome]++
@@ -390,10 +398,10 @@ func (r *uploadRun) summaryLine() string {
 		head = append(head, fmt.Sprintf("%d already in firmfact", n))
 	}
 	if n := counts[outcomeRefused]; n > 0 {
-		head = append(head, fmt.Sprintf("%d refused", n))
+		head = append(head, style.m.Red(fmt.Sprintf("%d refused", n)))
 	}
 	if n := counts[outcomeBusy] + counts[outcomeFailed] + counts[outcomeNotSent] + counts[outcomeInProgress]; n > 0 {
-		head = append(head, fmt.Sprintf("%d not sent", n))
+		head = append(head, style.m.Red(fmt.Sprintf("%d not sent", n)))
 	}
 	if n := counts[outcomeSkipped]; n > 0 {
 		head = append(head, fmt.Sprintf("%d left out", n))
@@ -402,7 +410,7 @@ func (r *uploadRun) summaryLine() string {
 		head = append([]string{"Nothing uploaded"}, head...)
 	}
 	line := strings.Join(head, ", ")
-	if states := stateCounts(r.documents()); states != "" {
+	if states := style.stateCounts(r.documents()); states != "" {
 		line += ": " + states
 	}
 	return line + "."

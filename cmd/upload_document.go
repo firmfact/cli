@@ -6,7 +6,6 @@ import (
 	"math/big"
 	"strconv"
 	"strings"
-	"text/tabwriter"
 	"time"
 	"unicode"
 	"unicode/utf8"
@@ -27,6 +26,64 @@ const maxReviewItems = 5
 // nothingBooked closes the results of documents waiting on their review
 // page, the link above it.
 const nothingBooked = "Nothing is booked until someone publishes it there."
+
+// resultStyle is how an upload's results are coloured for a person: green
+// for a good result (no variance, nothing flagged for review), red for a
+// bad one (a document that could not be read, a file that was not stored,
+// an invoice above its contract). The zero value is plain, as a pipe, a
+// script and NO_COLOR get them.
+type resultStyle struct {
+	m ui.ColorMode
+	// threshold is --fail-on-variance's, when it was given: an invoice
+	// over it is red whichever side of its contract it is on.
+	threshold *upload.Threshold
+}
+
+// resultStyleFor is the style of a command's results on app's stdout,
+// with --fail-on-variance as flag has it.
+func resultStyleFor(app *App, flag varianceFlag) resultStyle {
+	s := resultStyle{m: app.Mode()}
+	if flag.on {
+		t := flag.threshold
+		s.threshold = &t
+	}
+	return s
+}
+
+// failedDocument reports whether an upload failed on doc, as its exit
+// status says: it could not be read, it is gone, or it was skipped as the
+// month's allowance was used up.
+func failedDocument(doc *upload.Document) bool {
+	return doc.State == upload.StateFailed || doc.State == stateMissing ||
+		doc.State == upload.StateSkipped && doc.Reason == "over_quota"
+}
+
+// state is doc's state in words, in red for a document the upload failed
+// on.
+func (s resultStyle) state(doc *upload.Document) string {
+	if failedDocument(doc) {
+		return s.m.Red(stateWords(doc))
+	}
+	return stateWords(doc)
+}
+
+// badVariance reports whether v is a variance to show in red: an invoice
+// above its contract, or with --fail-on-variance, one over the threshold
+// on either side. Lines that differ but add up to the contract are above
+// it only for a threshold that counts them (one of no variance at all).
+func (s resultStyle) badVariance(v *upload.Variance) bool {
+	if v == nil || v.Status != "variance" {
+		return false
+	}
+	m, ok := v.Measure()
+	switch {
+	case !ok:
+		return false
+	case s.threshold != nil && s.threshold.Exceeded(m):
+		return true
+	}
+	return m.Amount.Sign() > 0 && !m.Offsets()
+}
 
 // wrapWidth is how wide an upload's paragraphs are: 72 columns, or less on
 // a narrower terminal.
@@ -77,11 +134,11 @@ func (b blockWriter) line(label, text string, more ...string) {
 
 // printDocument prints doc, a document in document_result/1, under name.
 // duplicate marks a document the upload found already in the workspace.
-func printDocument(w io.Writer, name string, doc *upload.Document, duplicate bool, width int) {
-	header := name + ": " + describeDocument(doc)
+func (s resultStyle) printDocument(w io.Writer, name string, doc *upload.Document, duplicate bool, width int) {
+	header := name + ": " + s.describeDocument(doc)
 	switch {
 	case duplicate && !doc.Own:
-		header = name + ": already in firmfact, uploaded by someone else; " + stateWords(doc)
+		header = name + ": already in firmfact, uploaded by someone else; " + s.state(doc)
 	case duplicate:
 		header += " (already in firmfact)"
 	}
@@ -105,7 +162,7 @@ func printDocument(w io.Writer, name string, doc *upload.Document, duplicate boo
 		printRecords(b, rd.Records, width)
 	}
 	printContractMatch(b, doc)
-	printVariance(b, w, doc.Variance)
+	s.printVariance(b, w, doc.Variance)
 	if rd := doc.Read; rd != nil {
 		for _, c := range rd.Checks {
 			if c.Status != "pass" && c.Message != "" {
@@ -116,7 +173,7 @@ func printDocument(w io.Writer, name string, doc *upload.Document, duplicate boo
 	// What the review asks matters while the document waits for it; one
 	// published or attached is past it.
 	if doc.State == upload.StateReadyForReview {
-		printReview(b, doc.Review)
+		s.printReview(b, doc)
 	}
 	for _, note := range serverNotes(doc) {
 		b.line("Note", ui.SafeLine(note))
@@ -128,8 +185,8 @@ func printDocument(w io.Writer, name string, doc *upload.Document, duplicate boo
 
 // describeDocument is what the header says of doc: its type and state, or
 // the state alone when there is no type to name.
-func describeDocument(doc *upload.Document) string {
-	state := stateWords(doc)
+func (s resultStyle) describeDocument(doc *upload.Document) string {
+	state := s.state(doc)
 	if doc.Type == "" || doc.State == upload.StateFailed || upload.InProgress(doc.State) {
 		return state
 	}
@@ -450,14 +507,21 @@ func contractLabel(c *upload.Contract) string {
 }
 
 // printVariance writes how an invoice compares with its contract, and
-// each line that does not match.
-func printVariance(b blockWriter, w io.Writer, v *upload.Variance) {
+// each line that does not match: none in green, and one above the
+// contract or over the threshold in red.
+func (s resultStyle) printVariance(b blockWriter, w io.Writer, v *upload.Variance) {
 	if v == nil {
 		return
 	}
 	switch v.Status {
 	case "variance", "none":
 		text := ui.SafeLine(v.Summary)
+		switch {
+		case v.Status == "none":
+			text = s.m.Green(text)
+		case s.badVariance(v):
+			text = s.m.Red(text)
+		}
 		if v.Preview {
 			text += " (preview)"
 		}
@@ -472,8 +536,10 @@ func printVariance(b blockWriter, w io.Writer, v *upload.Variance) {
 	}
 }
 
-// printReview writes what the review page asks of a person.
-func printReview(b blockWriter, rv *upload.Review) {
+// printReview writes what the review page asks of doc's reader: in green
+// when that is nothing, as the table says it (see flagsNothing).
+func (s resultStyle) printReview(b blockWriter, doc *upload.Document) {
+	rv := doc.Review
 	if rv == nil {
 		return
 	}
@@ -490,6 +556,8 @@ func printReview(b blockWriter, rv *upload.Review) {
 			lines = append(lines, fmt.Sprintf("and %d more on the review page", more))
 		}
 		b.line("To review", lines[0], lines[1:]...)
+	case rv.Summary != "" && flagsNothing(doc):
+		b.line("To review", s.m.Green(ui.SafeLine(rv.Summary)))
 	case rv.Summary != "":
 		b.line("To review", ui.SafeLine(rv.Summary))
 	}
@@ -522,13 +590,12 @@ func waitingForReview(docs []*upload.Document) bool {
 
 // printDocumentTable prints documents a row each: the amount, the
 // contract, the variance and what the review asks.
-func printDocumentTable(w io.Writer, files []*uploadFile) {
-	tw := tabwriter.NewWriter(w, 0, 2, 2, ' ', 0)
-	fmt.Fprintln(tw, " #\tFILE\tAMOUNT\tCONTRACT\tVARIANCE\tREVIEW")
+func (s resultStyle) printDocumentTable(w io.Writer, files []*uploadFile) {
+	rows := [][]string{{" #", "FILE", "AMOUNT", "CONTRACT", "VARIANCE", "REVIEW"}}
 	for i, f := range files {
-		fmt.Fprintf(tw, "%2d\t%s\t%s\t%s\t%s\t%s\n", i+1, f.label(), amountCell(f.doc), contractCell(f.doc), varianceCell(f.doc), reviewCell(f.doc))
+		rows = append(rows, []string{fmt.Sprintf("%2d", i+1), f.label(), amountCell(f.doc), contractCell(f.doc), s.varianceCell(f.doc), s.reviewCell(f.doc)})
 	}
-	_ = tw.Flush()
+	_ = writeColumns(w, rows)
 }
 
 func amountCell(doc *upload.Document) string {
@@ -566,30 +633,38 @@ func contractCell(doc *upload.Document) string {
 	return words(m.Status)
 }
 
-func varianceCell(doc *upload.Document) string {
+// varianceCell is how far an invoice is from its contract: none in green,
+// an amount above the contract or over the threshold in red.
+func (s resultStyle) varianceCell(doc *upload.Document) string {
 	v := doc.Variance
 	switch {
 	case v == nil:
 		return "-"
+	case v.Status == "variance" && v.Amount != "" && s.badVariance(v):
+		return s.m.Red(signedText(v.Amount))
 	case v.Status == "variance" && v.Amount != "":
 		return signedText(v.Amount)
 	case v.Status == "none":
-		return "none"
+		return s.m.Green("none")
 	}
 	return "-"
 }
 
-func reviewCell(doc *upload.Document) string {
+// reviewCell is what the review page asks of a person, in a few words:
+// nothing flagged in green, a document the upload failed on in red.
+func (s resultStyle) reviewCell(doc *upload.Document) string {
 	switch {
 	case upload.InProgress(doc.State):
 		return "still being read"
 	case doc.State == upload.StateSkipped && doc.Reason == "over_quota":
-		return "over the allowance"
+		return s.m.Red("over the allowance")
 	case doc.State == upload.StateReadyForReview && booked(doc):
 		// Netting guidelines, which apply when they are read.
 		return "applied when read"
 	case doc.State != upload.StateReadyForReview, doc.Review == nil && doc.ContractMatch == nil:
-		return stateWords(doc)
+		return s.state(doc)
+	case flagsNothing(doc):
+		return s.m.Green("nothing flagged")
 	}
 	if m := doc.ContractMatch; m != nil && m.Status == "suggested" {
 		return "choose contract"
@@ -600,21 +675,43 @@ func reviewCell(doc *upload.Document) string {
 		return "-"
 	case rv.AnalysisPending:
 		return "open to prepare"
-	case rv.Counts != nil && rv.Counts.NeedsReview+rv.Counts.Suggested > 0:
-		n := rv.Counts.NeedsReview + rv.Counts.Suggested
-		return fmt.Sprintf("%d %s", n, plural(n, "item", "items"))
-	case len(rv.Items) > 0:
-		n := len(rv.Items) + rv.MoreItems
-		return fmt.Sprintf("%d %s", n, plural(n, "item", "items"))
 	}
-	return "nothing flagged"
+	// Something is flagged (see flagsNothing): the counts, when they have
+	// it, else the items listed.
+	n := len(rv.Items) + rv.MoreItems
+	if rv.Counts != nil && rv.Counts.NeedsReview+rv.Counts.Suggested > 0 {
+		n = rv.Counts.NeedsReview + rv.Counts.Suggested
+	}
+	return fmt.Sprintf("%d %s", n, plural(n, "item", "items"))
 }
 
-// stateCounts says how many of docs are in each state, in words.
-func stateCounts(docs []*upload.Document) string {
+// flagsNothing reports whether doc waits on its review page with nothing
+// for a person to do there: no contract to choose, no item flagged. The
+// table says "nothing flagged" of exactly these documents (see reviewCell),
+// and the block's review line is green for them.
+func flagsNothing(doc *upload.Document) bool {
+	rv := doc.Review
+	switch {
+	case doc.State != upload.StateReadyForReview, booked(doc), rv == nil, rv.AnalysisPending, len(rv.Items) > 0:
+		return false
+	case doc.ContractMatch != nil && doc.ContractMatch.Status == "suggested":
+		return false
+	}
+	return rv.Counts == nil || rv.Counts.NeedsReview+rv.Counts.Suggested <= 0
+}
+
+// stateCounts says how many of docs are in each state, in words, a
+// count with a document the upload failed on in red (see failedDocument):
+// one that could not be read, is gone, or was skipped as the allowance was
+// used up.
+func (s resultStyle) stateCounts(docs []*upload.Document) string {
 	type bucket struct {
 		words string
 		n     int
+		// failed is set when a document of the bucket failed. The reason
+		// is not in the key, so skips over the allowance share "skipped"
+		// with any others and make all of it red.
+		failed bool
 	}
 	order := []string{upload.StateReadyForReview, upload.StatePublished, upload.StateAttached, "reading", upload.StateFailed, upload.StateSkipped}
 	buckets := map[string]*bucket{}
@@ -637,11 +734,16 @@ func stateCounts(docs []*upload.Document) string {
 			}
 		}
 		b.n++
+		b.failed = b.failed || failedDocument(d)
 	}
 	var parts []string
 	for _, key := range append(order, others...) {
 		if b, ok := buckets[key]; ok {
-			parts = append(parts, fmt.Sprintf("%d %s", b.n, b.words))
+			part := fmt.Sprintf("%d %s", b.n, b.words)
+			if b.failed {
+				part = s.m.Red(part)
+			}
+			parts = append(parts, part)
 		}
 	}
 	return strings.Join(parts, ", ")

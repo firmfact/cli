@@ -187,7 +187,7 @@ func runSignup(cmd *cobra.Command, app *App, o *signupOptions) error {
 		app.noteSignInNotKept(p, c.Host)
 	}
 	fmt.Fprintf(app.Out, "%s You are signed in, with %q as your default workspace.\n",
-		app.Mode().Rainbow("Welcome to firmfact."), account.Name)
+		app.Mode().Green("Welcome to firmfact."), account.Name)
 	refreshToolsQuietly(ctx, app, c, true)
 
 	if o.NoWait {

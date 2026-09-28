@@ -45,7 +45,7 @@ func TestDocumentBlocks(t *testing.T) {
 		if i > 0 {
 			buf.WriteString("\n")
 		}
-		printDocument(&buf, s.Name, &s.Document, s.Duplicate, 72)
+		resultStyle{}.printDocument(&buf, s.Name, &s.Document, s.Duplicate, 72)
 	}
 	assertGoldenFile(t, filepath.Join(uploadTestdata, "shapes.golden"), buf.String())
 }
@@ -65,7 +65,7 @@ func TestRecordLines(t *testing.T) {
 		if i > 0 {
 			buf.WriteString("\n")
 		}
-		printDocument(&buf, s.Name, &s.Document, s.Duplicate, 72)
+		resultStyle{}.printDocument(&buf, s.Name, &s.Document, s.Duplicate, 72)
 	}
 	assertGoldenFile(t, filepath.Join(uploadTestdata, "records_shapes.golden"), buf.String())
 	assertNoTerminalControls(t, "records", buf.String())
@@ -88,7 +88,7 @@ func TestUnmatchedRowsSayWhatPublishingDoes(t *testing.T) {
 	vendors := upload.RecordCounts{Type: "vendor", Label: "Vendors", Total: 2, Unmatched: 2}
 	for _, width := range []int{72, 40, 20} {
 		var buf bytes.Buffer
-		printDocument(&buf, "sheet.xlsx", doc(people, vendors), false, width)
+		resultStyle{}.printDocument(&buf, "sheet.xlsx", doc(people, vendors), false, width)
 		lines := strings.Split(strings.TrimSuffix(buf.String(), "\n"), "\n")
 		if len(lines) < 4 || !strings.HasPrefix(lines[3], "  Unmatched   Publishing may") {
 			t.Fatalf("width %d: no note under the types:\n%s", width, buf.String())
@@ -107,7 +107,7 @@ func TestUnmatchedRowsSayWhatPublishingDoes(t *testing.T) {
 	}
 	people.Unmatched, vendors.Unmatched = 0, 0
 	var buf bytes.Buffer
-	printDocument(&buf, "sheet.xlsx", doc(people, vendors), false, 72)
+	resultStyle{}.printDocument(&buf, "sheet.xlsx", doc(people, vendors), false, 72)
 	if strings.Contains(buf.String(), "Unmatched") {
 		t.Errorf("a sheet without unmatched rows:\n%s", buf.String())
 	}
@@ -120,7 +120,7 @@ func TestDocumentTable(t *testing.T) {
 		files = append(files, &uploadFile{name: s.Name, doc: &s.Document})
 	}
 	var buf bytes.Buffer
-	printDocumentTable(&buf, files)
+	resultStyle{}.printDocumentTable(&buf, files)
 	assertGoldenFile(t, filepath.Join(uploadTestdata, "shapes_table.golden"), buf.String())
 	if page := documentsPage(files); page != docsHost+"/accounts/"+acmeID+"/documents" {
 		t.Errorf("documents page = %q", page)
@@ -132,7 +132,7 @@ func TestDocumentTable(t *testing.T) {
 	for i, f := range files {
 		docs[i] = f.doc
 	}
-	if got := stateCounts(docs); got != "5 ready for review, 1 published, 1 attached as a reference, 1 still being read, 1 skipped, 1 some new state" {
+	if got := (resultStyle{}).stateCounts(docs); got != "5 ready for review, 1 published, 1 attached as a reference, 1 still being read, 1 skipped, 1 some new state" {
 		t.Errorf("state counts = %q", got)
 	}
 }
@@ -180,7 +180,7 @@ func TestProblemBlocks(t *testing.T) {
 		{name: "c.pdf", outcome: outcomeInProgress, message: "c.pdf is being uploaded to this workspace right now."},
 		{name: "d.pdf", outcome: outcomeFailed, message: "d.pdf changed while it was being uploaded, so nothing was stored; upload it again once it is complete"},
 	} {
-		printProblem(&buf, f, 72)
+		resultStyle{}.printProblem(&buf, f, 72)
 	}
 	want := `a.docx: not stored
   a.docx: the contents do not match the .docx extension, so it was not
@@ -248,10 +248,10 @@ func FuzzDocumentBlock(f *testing.F) {
 			return
 		}
 		var out strings.Builder
-		printDocument(&out, "file.pdf", &doc, false, 72)
-		printDocument(&out, "file.pdf", &doc, true, 20)
-		printDocumentTable(&out, []*uploadFile{{name: "file.pdf", doc: &doc}})
-		out.WriteString(stateCounts([]*upload.Document{&doc}) + "\n")
+		resultStyle{}.printDocument(&out, "file.pdf", &doc, false, 72)
+		resultStyle{}.printDocument(&out, "file.pdf", &doc, true, 20)
+		resultStyle{}.printDocumentTable(&out, []*uploadFile{{name: "file.pdf", doc: &doc}})
+		out.WriteString(resultStyle{}.stateCounts([]*upload.Document{&doc}) + "\n")
 		assertNoTerminalControls(t, "document", out.String())
 		for _, line := range strings.Split(out.String(), "\n") {
 			if safe := ui.SafeLine(line); safe != line {

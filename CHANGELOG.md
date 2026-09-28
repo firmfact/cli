@@ -23,6 +23,17 @@ change with it, so they are not listed here.
 
 ## Unreleased
 
+### Changed
+
+- Colours follow one rule: your terminal's own green for results that went
+  well (a workspace that is ready, a passed `doctor` check, an invoice with
+  no variance, a document with nothing flagged for review), its red for
+  those that did not (a failed `doctor` check, `error:`, a document that
+  could not be read, a file that was not stored, an invoice above its
+  contract or over the `--fail-on-variance` threshold), and brand orange
+  for the commands to run next. Only the logo still has a rainbow, and the
+  setup progress bar is plain.
+
 ## 0.1.0 - 2026-09-28
 
 ### Added

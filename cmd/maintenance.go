@@ -211,9 +211,9 @@ func newDoctorCommand(app *App) *cobra.Command {
 					checks = append(checks, doctorCheck{Name: label, OK: ok, Detail: detail})
 					return
 				}
-				mark := m.Rainbow("ok  ")
+				mark := m.Green("ok") + "  "
 				if !ok {
-					mark = m.Orange("FAIL")
+					mark = m.Red("FAIL")
 				}
 				fmt.Fprintf(app.Out, "  %s  %-14s %s\n", mark, label, ui.SafeLine(detail))
 			}

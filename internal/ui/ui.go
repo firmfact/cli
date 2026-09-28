@@ -1,9 +1,13 @@
-// Package ui is the CLI's look: the block-letter banner with the delta mark,
-// brand orange, and a rainbow gradient for the moments worth celebrating.
+// Package ui is the CLI's look: the block-letter banner with the delta mark
+// in brand orange, orange for what to type next, and the terminal's own
+// green and red for results that went well or badly. The only rainbow is
+// the one that sweeps across the logo.
 //
-// Colour follows the terminal: truecolor when COLORTERM says so, 256 colours
-// on 256color terminals, basic ANSI otherwise, and none at all when NO_COLOR
-// is set or the output is not a terminal (scripts and --json stay plain).
+// Brand orange and that sweep follow the terminal: truecolor when COLORTERM
+// says so, 256 colours on 256color terminals, basic ANSI otherwise. Green
+// and red are the basic ANSI colours on every terminal, so its theme picks
+// their shade. There is no colour at all when NO_COLOR is set or the output
+// is not a terminal (scripts and --json stay plain).
 package ui
 
 import (
@@ -198,43 +202,40 @@ func (m ColorMode) Orange(s string) string {
 	return m.fg(orange) + s + m.reset()
 }
 
-// Rainbow paints s with a hue sweep across its characters.
-func (m ColorMode) Rainbow(s string) string {
-	if m == NoColor {
+// Green paints s in the terminal's own green, for a good result: done,
+// ready, nothing wrong.
+func (m ColorMode) Green(s string) string { return m.basic(32, s) }
+
+// Red paints s in the terminal's own red, for a bad result: a check that
+// failed, an error, a document that could not be read.
+func (m ColorMode) Red(s string) string { return m.basic(31, s) }
+
+// basic paints s in one of the eight basic ANSI colours, by its SGR code,
+// in every colour mode: the terminal's theme decides the exact shade.
+func (m ColorMode) basic(code int, s string) string {
+	if m == NoColor || s == "" {
 		return s
 	}
-	runes := []rune(s)
-	var b strings.Builder
-	for i, r := range runes {
-		if r == ' ' {
-			b.WriteRune(r)
-			continue
-		}
-		b.WriteString(m.fg(hue(float64(i) / math.Max(1, float64(len(runes)-1)))))
-		b.WriteRune(r)
-	}
-	b.WriteString(m.reset())
-	return b.String()
+	return fmt.Sprintf("\x1b[%dm%s\x1b[0m", code, s)
 }
 
-// Bar is a progress bar of the given width, its filled part in a rainbow.
+// Bar is a progress bar of the given width: its filled part in the
+// terminal's own text colour, on a dim track.
 func (m ColorMode) Bar(fraction float64, width int) string {
 	fraction = math.Max(0, math.Min(1, fraction))
 	filled := int(math.Round(fraction * float64(width)))
 	if m == NoColor {
 		return "[" + strings.Repeat("#", filled) + strings.Repeat("-", width-filled) + "]"
 	}
-	var b strings.Builder
-	for i := 0; i < filled; i++ {
-		b.WriteString(m.fg(hue(float64(i) / float64(width))))
-		b.WriteString("█")
+	bar := strings.Repeat("█", filled)
+	if filled < width {
+		bar += m.dim(strings.Repeat("░", width-filled))
 	}
-	b.WriteString(m.reset())
-	b.WriteString(m.dim(strings.Repeat("░", width-filled)))
-	return b.String()
+	return bar
 }
 
-// hue maps 0..1 to a rainbow colour (red through violet).
+// hue maps 0..1 to a rainbow colour (red through violet), for the sweep
+// across the logo.
 func hue(t float64) rgb {
 	h := t * 300 // stop at violet rather than wrapping back to red
 	c := 1.0

@@ -246,8 +246,14 @@ func selfUpdate(ctx context.Context, app *App, result updateResult, progress str
 		result.Updated, result.Path = true, path
 		return app.PrintJSON(result)
 	}
-	fmt.Fprintf(app.Out, "%s Updated %s.\n", app.Mode().Rainbow("Done."), path)
+	fmt.Fprintln(app.Out, updatedLine(app, path))
 	return nil
+}
+
+// updatedLine is what update says on app's stdout once it has replaced the
+// binary at path, "Done." in green on a terminal that shows colour.
+func updatedLine(app *App, path string) string {
+	return app.Mode().Green("Done.") + " Updated " + path + "."
 }
 
 // leaveToPackageManager is update's answer to --pre, or to --version

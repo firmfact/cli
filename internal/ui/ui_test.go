@@ -22,11 +22,44 @@ func TestNoColorIsPlain(t *testing.T) {
 	if up != len(bigDelta)+3 {
 		t.Errorf("Banner = %d, want %d", up, len(bigDelta)+3)
 	}
-	if got := NoColor.Rainbow("hi there"); got != "hi there" {
-		t.Errorf("Rainbow = %q", got)
+	if got := NoColor.Green("Done."); got != "Done." {
+		t.Errorf("Green = %q", got)
+	}
+	if got := NoColor.Red("FAIL"); got != "FAIL" {
+		t.Errorf("Red = %q", got)
 	}
 	if got := NoColor.Bar(0.5, 10); got != "[#####-----]" {
 		t.Errorf("Bar = %q", got)
+	}
+}
+
+// Green and red are the terminal's own, the basic ANSI colours 32 and 31
+// on every colour terminal, so its theme picks the shade; nothing is
+// painted around no text at all.
+func TestGreenAndRedAreTheTerminalsOwn(t *testing.T) {
+	for _, m := range []ColorMode{Basic, Color256, TrueColor} {
+		if got := m.Green("ok"); got != "\x1b[32mok\x1b[0m" {
+			t.Errorf("mode %d: Green = %q", m, got)
+		}
+		if got := m.Red("FAIL"); got != "\x1b[31mFAIL\x1b[0m" {
+			t.Errorf("mode %d: Red = %q", m, got)
+		}
+		if got := m.Green("") + m.Red(""); got != "" {
+			t.Errorf("mode %d: painted nothing as %q", m, got)
+		}
+	}
+}
+
+// The progress bar is plain blocks in the terminal's text colour on a dim
+// track: no colour of its own, and never a rainbow.
+func TestBarHasNoColourOfItsOwn(t *testing.T) {
+	for _, m := range []ColorMode{Basic, Color256, TrueColor} {
+		if got, want := m.Bar(0.3, 10), "███\x1b[2m░░░░░░░\x1b[0m"; got != want {
+			t.Errorf("mode %d: Bar = %q, want %q", m, got, want)
+		}
+		if got, want := m.Bar(1, 4), "████"; got != want {
+			t.Errorf("mode %d: a full bar = %q, want %q", m, got, want)
+		}
 	}
 }
 
