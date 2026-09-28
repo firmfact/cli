@@ -8,13 +8,15 @@ import (
 	"github.com/firmfact/cli/internal/upload"
 )
 
-// inUTC shows times in UTC for the rest of the test, whatever the
-// machine's zone.
+// inUTC shows upload times in UTC for the rest of the test, whatever the
+// machine's zone. It sets displayZone, not time.Local: writing time.Local
+// raced with a connection goroutine of an earlier test's server that was
+// still calling time.Now (seen on Windows).
 func inUTC(t *testing.T) {
 	t.Helper()
-	prev := time.Local
-	time.Local = time.UTC
-	t.Cleanup(func() { time.Local = prev })
+	prev := displayZone
+	displayZone = func() *time.Location { return time.UTC }
+	t.Cleanup(func() { displayZone = prev })
 }
 
 // upload status lists your recent uploads, newest first, with the ids

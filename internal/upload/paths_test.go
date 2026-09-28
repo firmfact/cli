@@ -234,13 +234,15 @@ func TestExpandLeavesHiddenFoldersOutOfPatterns(t *testing.T) {
 // the name it has.
 func TestExpandFoldsCase(t *testing.T) {
 	tree(t, "caps/SCAN001.PDF", "caps/scan002.pdf", "CAPS2/a.Pdf")
+	// Each half sets foldCase itself: its default is true on Windows.
+	prev := foldCase
+	t.Cleanup(func() { foldCase = prev })
+	foldCase = false
 	f, err := Expand([]string{"caps/*.pdf"}, false)
 	if err != nil || !sameList(paths(f), "caps/scan002.pdf") {
 		t.Errorf("case counts: %v, %v", paths(f), err)
 	}
-	prev := foldCase
 	foldCase = true
-	t.Cleanup(func() { foldCase = prev })
 	f, err = Expand([]string{"caps/*.pdf", "CAPS2/*.PDF", "c[A-Z]ps/scan00[12].pdf"}, false)
 	if err != nil || !sameList(paths(f), "caps/SCAN001.PDF", "caps/scan002.pdf", "CAPS2/a.Pdf") {
 		t.Errorf("case folded: %v, %v", paths(f), err)

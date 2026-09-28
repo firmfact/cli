@@ -310,6 +310,11 @@ func (s *uploadStatus) recent(ctx context.Context, limit int) error {
 	return nil
 }
 
+// displayZone is the zone upload times are shown in: the machine's own. A
+// test sets it rather than time.Local, which goroutines left over from
+// other tests may still be reading.
+var displayZone = func() *time.Location { return time.Local }
+
 // uploadedAt is when a document was uploaded, in local time: 27 Sep 2026
 // 18:59.
 func uploadedAt(s string) string {
@@ -317,5 +322,5 @@ func uploadedAt(s string) string {
 	if err != nil {
 		return orDefault(ui.SafeLine(s), "-")
 	}
-	return t.Local().Format("2 Jan 2006 15:04")
+	return t.In(displayZone()).Format("2 Jan 2006 15:04")
 }
