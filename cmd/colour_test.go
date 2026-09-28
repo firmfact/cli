@@ -283,7 +283,8 @@ func TestWriteColumnsLaysOutAsTabwriter(t *testing.T) {
 
 // What failed in a batch is red in its summary: a file that was not
 // stored, and the documents that could not be read, are gone or were
-// skipped over the allowance. Other skips stay plain.
+// skipped over the allowance. Other skips stay plain, counted apart from
+// those over the allowance.
 func TestProblemsAndCountsInColour(t *testing.T) {
 	ready, failed, skipped := &upload.Document{State: upload.StateReadyForReview}, &upload.Document{State: upload.StateFailed}, &upload.Document{State: upload.StateSkipped}
 	overQuota, missing := &upload.Document{State: upload.StateSkipped, Reason: "over_quota"}, &upload.Document{State: stateMissing}
@@ -292,8 +293,9 @@ func TestProblemsAndCountsInColour(t *testing.T) {
 		want string
 	}{
 		{[]*upload.Document{ready, failed, skipped}, "1 ready for review, " + painted(red, "1 could not be read") + ", 1 skipped"},
-		{[]*upload.Document{ready, overQuota}, "1 ready for review, " + painted(red, "1 skipped")},
-		{[]*upload.Document{skipped, overQuota}, painted(red, "2 skipped")},
+		{[]*upload.Document{ready, overQuota}, "1 ready for review, " + painted(red, "1 over the allowance")},
+		{[]*upload.Document{skipped, overQuota}, "1 skipped, " + painted(red, "1 over the allowance")},
+		{[]*upload.Document{overQuota, skipped, overQuota}, "1 skipped, " + painted(red, "2 over the allowance")},
 		{[]*upload.Document{missing, ready}, "1 ready for review, " + painted(red, "1 no longer in the workspace")},
 	} {
 		if got := inColour.stateCounts(c.docs); got != c.want {
@@ -332,7 +334,7 @@ func TestProblemsAndCountsInColour(t *testing.T) {
 		{name: "c.docx", outcome: outcomeRefused},
 		busy,
 	}}
-	want := "2 uploaded, " + painted(red, "1 refused") + ", " + painted(red, "1 not sent") + ": 1 ready for review, " + painted(red, "1 skipped") + "."
+	want := "2 uploaded, " + painted(red, "1 refused") + ", " + painted(red, "1 not sent") + ": 1 ready for review, " + painted(red, "1 over the allowance") + "."
 	if got := run.summaryLine(inColour); got != want {
 		t.Errorf("summary line %q, want %q", got, want)
 	}

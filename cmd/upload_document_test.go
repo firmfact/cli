@@ -132,7 +132,7 @@ func TestDocumentTable(t *testing.T) {
 	for i, f := range files {
 		docs[i] = f.doc
 	}
-	if got := (resultStyle{}).stateCounts(docs); got != "5 ready for review, 1 published, 1 attached as a reference, 1 still being read, 1 skipped, 1 some new state" {
+	if got := (resultStyle{}).stateCounts(docs); got != "5 ready for review, 1 published, 1 attached as a reference, 1 still being read, 1 over the allowance, 1 some new state" {
 		t.Errorf("state counts = %q", got)
 	}
 }

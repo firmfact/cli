@@ -703,29 +703,40 @@ func flagsNothing(doc *upload.Document) bool {
 // stateCounts says how many of docs are in each state, in words, a
 // count with a document the upload failed on in red (see failedDocument):
 // one that could not be read, is gone, or was skipped as the allowance was
-// used up.
+// used up. Skips over the allowance are counted apart from other skips,
+// "1 skipped, 1 over the allowance", so only they are red.
 func (s resultStyle) stateCounts(docs []*upload.Document) string {
 	type bucket struct {
 		words string
 		n     int
-		// failed is set when a document of the bucket failed. The reason
-		// is not in the key, so skips over the allowance share "skipped"
-		// with any others and make all of it red.
+		// failed is set when a document of the bucket failed (the
+		// documents of a bucket all failed or none did).
 		failed bool
 	}
-	order := []string{upload.StateReadyForReview, upload.StatePublished, upload.StateAttached, "reading", upload.StateFailed, upload.StateSkipped}
+	// overAllowance is the key of skips over the allowance; its colon
+	// keeps it apart from any state the server sends.
+	const overAllowance = "skipped:over_quota"
+	order := []string{upload.StateReadyForReview, upload.StatePublished, upload.StateAttached, "reading", upload.StateFailed, upload.StateSkipped, overAllowance}
 	buckets := map[string]*bucket{}
 	var others []string
 	for _, d := range docs {
 		key := d.State
-		if upload.InProgress(key) {
+		switch {
+		case upload.InProgress(key):
 			key = "reading"
+		case key == upload.StateSkipped && d.Reason == "over_quota":
+			key = overAllowance
 		}
 		b, ok := buckets[key]
 		if !ok {
-			w := stateWords(&upload.Document{State: key})
-			if key == "reading" {
+			var w string
+			switch key {
+			case "reading":
 				w = "still being read"
+			case overAllowance:
+				w = "over the allowance"
+			default:
+				w = stateWords(&upload.Document{State: key})
 			}
 			b = &bucket{words: w}
 			buckets[key] = b

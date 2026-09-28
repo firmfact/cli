@@ -33,6 +33,9 @@ change with it, so they are not listed here.
   contract or over the `--fail-on-variance` threshold), and brand orange
   for the commands to run next. Only the logo still has a rainbow, and the
   setup progress bar is plain.
+- `upload` and `upload status` count a document skipped because the plan's
+  allowance is used up on its own, as "over the allowance", instead of
+  among the skipped ones.
 
 ## 0.1.0 - 2026-09-28
 
