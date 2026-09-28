@@ -13,10 +13,6 @@ history of what changed and when.
 This CLI brings firmfact to your terminal. Create an account, sign in and ask
 your workspaces questions, from a prompt or from a script.
 
-> **Status: pre-release.** The first binaries appear under
-> [Releases](https://github.com/firmfact/cli/releases) shortly. Until
-> then you can install it with Go (see below).
-
 ## Try it in two minutes
 
 ```bash
@@ -57,27 +53,27 @@ The same commands, and how to check a download by hand, are on
 brew install firmfact/tap/firmfact
 ```
 
-**Windows**
-
-```powershell
-scoop bucket add firmfact https://github.com/firmfact/scoop-bucket
-scoop install firmfact
-```
-
-The CLI is not in winget yet. Once its first release there has been
-accepted, `winget install --exact --id Firmfact.CLI` installs it too: by its
-identifier, as a bare name can match another publisher's package.
-
 **Linux**
 
 ```bash
 curl -fsSL https://firmfact.com/install.sh | sh
 ```
 
-The same line installs on a Mac without Homebrew. On Windows without Scoop:
+The same line works on a Mac that has OpenSSL 3 or a signed-in
+[GitHub CLI](https://cli.github.com/), which the signature check needs;
+otherwise use Homebrew.
+
+**Windows 11, Windows Server 2022 or later**
 
 ```powershell
 irm https://firmfact.com/install.ps1 | iex
+```
+
+**Any Windows, Windows 10 included**, with [Scoop](https://scoop.sh/):
+
+```powershell
+scoop bucket add firmfact https://github.com/firmfact/scoop-bucket
+scoop install firmfact
 ```
 
 The one-line installers verify a release before they install anything: its
@@ -632,9 +628,8 @@ Once a day the CLI checks for a newer release and for the oldest version the
 service supports. The check runs in the background while your command does, so
 it never slows a command down, and what it finds applies from the next
 command. On a terminal, a newer release gets one line telling you how to
-upgrade (`brew upgrade firmfact`, `scoop update firmfact`,
-`winget upgrade --exact --id Firmfact.CLI`, or `firmfact update` for a direct
-download, which checks the release's signature and checksum, and that the new
+upgrade (`brew upgrade firmfact`, `scoop update firmfact`, or
+`firmfact update` for a direct download, which checks the release's signature and checksum, and that the new
 binary runs and reports the right version, before replacing itself; should
 the swap fail, the old binary stays). If the service no longer
 supports your version, the CLI says so instead of failing in odd ways. On a
@@ -664,13 +659,11 @@ firmfact update --pre                    # the newest release, pre-releases incl
 firmfact update --version 0.1.0 --yes    # back to an older release, in a script
 ```
 
-Homebrew, Scoop and winget have releases only, never pre-releases, and
-upgrade the copy they installed themselves: for such a copy, `update` names
-the package manager's upgrade command, and with `--pre` or `--version` what
-it can do instead. Scoop keeps a version with `scoop hold firmfact`; winget
-installs a given release with
-`winget install --exact --id Firmfact.CLI --version 0.2.0` and keeps it with
-`winget pin add --exact --id Firmfact.CLI`; a Homebrew cask cannot be held.
+Homebrew and Scoop have releases only, never pre-releases, and upgrade the
+copy they installed themselves: for such a copy, `update` names the package
+manager's upgrade command, and with `--pre` or `--version` what it can do
+instead. Scoop keeps a version with `scoop hold firmfact`; a Homebrew cask
+cannot be held.
 
 `firmfact version` shows the version you have, the commit it was built from
 and the Go version it was built with, how it was installed and the latest
